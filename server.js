@@ -771,28 +771,27 @@ app.get('/', (req, res) => {
           <h3 id="project-title" style="margin:0;">🏛️ Sa Bàn Tòa Nhà (Real-time Demo)</h3>
           <span class="status-badge">● KẾT NỐI SẴN SÀNG</span>
         </div>
-
         <div class="app-controls">
           <button class="btn-cmd btn-master" onclick="sendCmd('ALL:1')">💡 TỔNG SA BÀN (BẬT)</button>
           <button class="btn-cmd btn-master" style="background:#ef4444;" onclick="sendCmd('ALL:0')">🔌 TẮT TẤT CẢ</button>
           <div style="height:10px;"></div>
           <div class="ctrl-title">Tất Cả Các Phòng</div>
           <div class="btn-group">
-            <button class="btn-cmd" onclick="sendCmd('TYPE:2:1')">2PN</button>
-            <button class="btn-cmd" onclick="sendCmd('TYPE:3:1')">3PN</button>
-            <button class="btn-cmd" onclick="sendCmd('TYPE:4:1')">4PN</button>
-            <button class="btn-cmd" onclick="sendCmd('TYPE:5:1')">PENTHOUSE</button>
-            <button class="btn-cmd" onclick="sendCmd('TYPE:6:1')">DUPLEX</button>
+            <button class="btn-cmd" onclick="toggleTypeCmd(2)">2PN</button>
+            <button class="btn-cmd" onclick="toggleTypeCmd(3)">3PN</button>
+            <button class="btn-cmd" onclick="toggleTypeCmd(4)">4PN</button>
+            <button class="btn-cmd" onclick="toggleTypeCmd(5)">PENTHOUSE</button>
+            <button class="btn-cmd" onclick="toggleTypeCmd(6)">DUPLEX</button>
           </div>
           <div class="ctrl-title">Thương Mại Và Tiện Ích</div>
           <div class="btn-group">
-            <button class="btn-cmd" style="background:#059669;" onclick="sendCmd('TYPE:100:1')">SHOPHOUSE</button>
-            <button class="btn-cmd" style="background:#059669;" onclick="sendCmd('TYPE:201:1')">BEAUTYSALON</button>
-            <button class="btn-cmd" style="background:#059669;" onclick="sendCmd('TYPE:202:1')">GYM-SHCĐ</button>
-            <button class="btn-cmd" style="background:#059669;" onclick="sendCmd('TYPE:203:1')">GAME</button>
-            <button class="btn-cmd" style="background:#059669;" onclick="sendCmd('TYPE:204:1')">MEETING</button>
-            <button class="btn-cmd" style="background:#059669;" onclick="sendCmd('TYPE:205:1')">CO-WORKING</button>
-            <button class="btn-cmd" style="background:#059669;" onclick="sendCmd('TYPE:206:1')">YOGA</button>
+            <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(100)">SHOPHOUSE</button>
+            <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(201)">BEAUTYSALON</button>
+            <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(202)">GYM-SHCĐ</button>
+            <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(203)">GAME</button>
+            <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(204)">MEETING</button>
+            <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(205)">CO-WORKING</button>
+            <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(206)">YOGA</button>
           </div>
         </div>
 
@@ -810,9 +809,21 @@ app.get('/', (req, res) => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(protocol + '//' + window.location.host);
 
+        // Lưu trạng thái toggle theo từng TYPE
+        const typeStates = {};
+
         function sendCmd(cmd) {
           console.log("🚀 [WEB SEND CMD]:", cmd);
-          ws.send(cmd);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(cmd);
+          }
+        }
+
+        // Tự động đảo trạng thái Bật/Tắt khi bấm nút trên Web
+        function toggleTypeCmd(typeInt) {
+          typeStates[typeInt] = !typeStates[typeInt];
+          const stateVal = typeStates[typeInt] ? 1 : 0;
+          sendCmd('TYPE:' + typeInt + ':' + stateVal);
         }
 
         fetch('/config')
@@ -852,7 +863,7 @@ app.get('/', (req, res) => {
                 else if (rm.type === 5) icon = '🏰';
                 else if (rm.type === 6) icon = '🏢';
 
-                html += '<div id="card-' + rm.hw + '" class="led-card" data-hw="' + rm.hw + '" data-type="' + rm.type + '">' +
+                html += '<div id="card-' + rm.hw + '" class="led-card" data-hw="' + rm.hw + '" data-type="' + rm.type + '" onclick="sendCmd(\'' + rm.hw + ':\' + (this.classList.contains(\'active\')?0:1))">' +
                         '<div class="led-icon">' + icon + '</div>' +
                         '<div class="led-label" title="' + rm.room + '">' + rm.room + '</div>' +
                         '</div>';
@@ -876,7 +887,6 @@ app.get('/', (req, res) => {
 
         ws.onmessage = (event) => {
           const dataStr = event.data.toString().trim();
-          console.log("📥 [WEB RECV]:", dataStr);
 
           const item = document.createElement('div');
           item.className = 'log-item';
@@ -884,44 +894,44 @@ app.get('/', (req, res) => {
           logDiv.appendChild(item);
           logDiv.scrollTop = logDiv.scrollHeight;
 
-          // 1. Nếu là lệnh ALL (ALL:1, ALL:0, hoặc ALL:1:0,1,2,3...)
-          if (dataStr.startsWith('ALL:')) {
-            const parts = dataStr.split(':');
-            const isOn = parts[1] === '1';
-
-            // Nếu có danh sách ID phía sau (VD: ALL:1:0,1,2,3...)
-            if (parts.length >= 3 && parts[2].trim().length > 0) {
-              // Tắt hết trước rồi chỉ bật các ID có trong danh sách
-              const targetIds = new Set(parts[2].split(',').map(id => id.trim()));
-              document.querySelectorAll('.led-card').forEach(c => {
-                const hw = c.dataset.hw;
-                if (targetIds.has(hw)) {
-                  isOn ? c.classList.add('active') : c.classList.remove('active');
-                }
-              });
-            } else {
-              // Nếu chỉ có ALL:1 hoặc ALL:0 -> Bật / Tắt TOÀN BỘ
-              document.querySelectorAll('.led-card').forEach(c => {
-                isOn ? c.classList.add('active') : c.classList.remove('active');
-              });
-            }
-            return;
-          }
-
-          // 2. Nếu là lệnh TYPE (TYPE:2:1, TYPE:100:1)
+          // 1. Xử lý lệnh TYPE (TYPE:2:1 hoặc TYPE:100:1)
           if (dataStr.startsWith('TYPE:')) {
             const parts = dataStr.split(':');
-            const type = parseInt(parts[1]);
+            const targetType = String(parts[1]).trim();
             const isOn = parts[2] === '1';
+
             document.querySelectorAll('.led-card').forEach(c => {
-              if (parseInt(c.dataset.type) === type) {
-                isOn ? c.classList.add('active') : c.classList.remove('active');
+              if (String(c.dataset.type).trim() === targetType) {
+                if (isOn) c.classList.add('active');
+                else c.classList.remove('active');
               }
             });
             return;
           }
 
-          // 3. Lệnh đơn lẻ "hwIndex:state" (VD: "0:1", "12:0")
+          // 2. Xử lý lệnh ALL (ALL:1, ALL:0, ALL:1:0,1,2,3...)
+          if (dataStr.startsWith('ALL:')) {
+            const parts = dataStr.split(':');
+            const isOn = parts[1] === '1';
+
+            if (parts.length >= 3 && parts[2].trim().length > 0) {
+              const targetIds = new Set(parts[2].split(',').map(id => id.trim()));
+              document.querySelectorAll('.led-card').forEach(c => {
+                if (targetIds.has(String(c.dataset.hw))) {
+                  if (isOn) c.classList.add('active');
+                  else c.classList.remove('active');
+                }
+              });
+            } else {
+              document.querySelectorAll('.led-card').forEach(c => {
+                if (isOn) c.classList.add('active');
+                else c.classList.remove('active');
+              });
+            }
+            return;
+          }
+
+          // 3. Xử lý lệnh đơn lẻ "hwIndex:state" (VD: "0:1", "12:0")
           if (dataStr.includes(':')) {
             const parts = dataStr.split(':');
             const hwIndex = parts[0].trim();
@@ -929,15 +939,8 @@ app.get('/', (req, res) => {
             updateLedCard(hwIndex, isOn);
             return;
           }
-
-          // 4. Lệnh JSON
-          try {
-            const data = JSON.parse(dataStr);
-            if (data.hardwareIndex !== undefined) {
-              updateLedCard(data.hardwareIndex, data.state === true || data.state === 1);
-            }
-          } catch(e) {}
         };
+      </script>
       </script>
     </body>
     </html>
