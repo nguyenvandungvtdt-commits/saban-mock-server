@@ -19,8 +19,25 @@
     .btn-master { background: #0284c7; font-size: 13px; padding: 8px 20px; border-radius: 20px; }
 
     /* Layout các Tháp: Cho phép cuộn ngang toàn diện nếu màn hình hẹp */
-    .buildings-flex { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 15px; width: 100%; box-sizing: border-radius; }
-    .building-col { flex: 1; min-width: 220px; background: #1e293b; border-radius: 12px; padding: 10px; border: 1px solid #334155; box-sizing: border-box; }
+    /* Cho phép 5 Tòa Tháp tự co giãn mượt mà vừa khít mọi màn hình */
+    .buildings-flex { 
+      display: flex; 
+      gap: 10px; 
+      overflow-x: auto; 
+      padding-bottom: 15px; 
+      width: 100%; 
+      box-sizing: border-box; 
+    }
+
+    .building-col { 
+      flex: 1 1 0; /* Cho phép các cột tự co giãn đều nhau */
+      min-width: 180px; /* Giảm min-width từ 220px xuống 180px để khít màn hình */
+      background: #1e293b; 
+      border-radius: 12px; 
+      padding: 8px; 
+      border: 1px solid #334155; 
+      box-sizing: border-box; 
+    }
     .building-header { text-align: center; font-weight: bold; color: #fef08a; padding-bottom: 8px; border-bottom: 1px solid #334155; margin-bottom: 10px; font-size: 14px; }
     
     .floors-stack { display: flex; flex-direction: column-reverse; gap: 6px; }
