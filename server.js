@@ -996,9 +996,16 @@ const wss = new WebSocket.Server({ server });
 
 const GIST_RAW_URL = 'https://gist.githubusercontent.com/nguyenvandungvtdt-commits/b3440aa5a5ab9e6e69bb570b389c88cb/raw/config.json';
 
-// 🟢 1. API TRẢ CONFIG CHO WEB & FLUTTER APP
-app.get('/config', (req, res) => {
+// CORS Middleware
+app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
+
+// 🟢 1. API TRẢ CONFIG CHO FLUTTER APP VÀ WEB
+app.get('/config', (req, res) => {
   const gistUrl = GIST_RAW_URL + '?t=' + Date.now();
   https.get(gistUrl, (response) => {
     let data = '';
@@ -1016,7 +1023,7 @@ app.get('/config', (req, res) => {
   });
 });
 
-// 🟢 2. DASHBOARD MẶT BẰNG TÒA NHÀ
+// 🟢 2. DASHBOARD GIAO DIỆN MẶT BẰNG WEBSOCKET
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -1119,7 +1126,7 @@ app.get('/', (req, res) => {
           sendCmd('TYPE:' + typeInt + ':' + stateVal);
         }
 
-        // 🟢 NẠP CONFIG TỪ API INTERNAL ĐÃ DỰ PHÒNG CHỐNG CẢNH BÁO
+        // TẢI CONFIG TRỰC TIẾP TỪ RENDER
         fetch('/config')
           .then(res => res.json())
           .then(data => {
@@ -1129,30 +1136,13 @@ app.get('/', (req, res) => {
               }
               renderBuildingLayout(data.d);
             } else {
-              loadFallbackData();
+              container.innerHTML = '<div style="color:#ef4444; text-align:center; width:100%;">⚠️ Không tìm thấy mảng d trong Config</div>';
             }
           })
           .catch(e => {
-            console.warn('Lỗi nạp /config, dùng fallback data:', e);
-            loadFallbackData();
+            console.error('Lỗi nạp config:', e);
+            container.innerHTML = '<div style="color:#ef4444; text-align:center; width:100%;">❌ Không thể tải mặt bằng. Vui lòng F5 lại trang!</div>';
           });
-
-        function loadFallbackData() {
-          const fallbackD = [
-            ["THÁP A", "TẦNG 01", "Shophouse-A101", 100, 0],
-            ["THÁP A", "TẦNG 01", "Shophouse-A102", 100, 1],
-            ["THÁP A", "TẦNG 01", "Shophouse-A103", 100, 2],
-            ["THÁP A", "TẦNG 01", "Sảnh AB", 200, 3],
-            ["THÁP A", "TẦNG 02", "BeautySalon A", 201, 4],
-            ["THÁP A", "TẦNG 02", "Gym-SHCĐ A", 202, 5],
-            ["THÁP A", "TẦNG 02", "Game", 203, 6],
-            ["THÁP A", "TẦNG 03", "A301-2BR", 2, 7],
-            ["THÁP A", "TẦNG 03", "A302-3BR", 3, 8],
-            ["THÁP B", "TẦNG 01", "Shophouse-B101", 100, 9],
-            ["THÁP B", "TẦNG 01", "Shophouse-B102", 100, 10]
-          ];
-          renderBuildingLayout(fallbackD);
-        }
 
         function renderBuildingLayout(rows) {
           const bMap = {};
@@ -1258,20 +1248,22 @@ app.get('/', (req, res) => {
   `);
 });
 
+// 🟢 3. WEBSOCKET SERVER LISTENER DÙNG CHUẨN ws.on('message')
 wss.on('connection', (ws) => {
-  console.log('🟢 [SERVER] WS Client mới kết nối');
+  console.log('🟢 [SERVER] Client mới kết nối WebSocket');
   ws.send(JSON.stringify({ status: "connected", device: "ESP32_MOCK_SERVER" }));
 
-  ws.onmessage = (message) => {
-    const rawData = message.data ? message.data.toString().trim() : message.toString().trim();
-    console.log("📩 [SERVER RECV]:", rawData);
+  // CHÚ Ý: Trong Node.js dùng .on('message')
+  ws.on('message', (message) => {
+    const rawData = message.toString().trim();
+    console.log("📩 [SERVER RECEIVED]:", rawData);
 
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(rawData);
       }
     });
-  };
+  });
 });
 
 server.listen(port, () => console.log(`Server running on port ${port}`));
