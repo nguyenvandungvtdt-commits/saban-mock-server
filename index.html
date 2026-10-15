@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <title>Sa Bàn Demo - Live Control Dashboard</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 15px; background: #0f172a; color: #f8fafc; margin: 0; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 15px; }
+    .status-badge { padding: 4px 12px; background: #166534; color: #4ade80; border-radius: 20px; font-weight: bold; font-size: 12px; }
+
+    .app-controls { background: #1e293b; border-radius: 14px; padding: 15px; margin-bottom: 20px; border: 1px solid #0284c7; text-align: center; }
+    .ctrl-title { color: #38bdf8; font-size: 13px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .btn-group { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 12px; }
+    .btn-cmd { background: #f97316; color: white; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .btn-cmd:hover { background: #ea580c; transform: translateY(-1px); }
+    .btn-master { background: #0284c7; font-size: 13px; padding: 8px 20px; border-radius: 20px; }
+
+    .buildings-flex { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
+    .building-col { flex: 1; min-width: 220px; background: #1e293b; border-radius: 12px; padding: 12px; border: 1px solid #334155; }
+    .building-header { text-align: center; font-weight: bold; color: #fef08a; padding-bottom: 8px; border-bottom: 1px solid #334155; margin-bottom: 10px; font-size: 14px; }
+    
+    .floors-stack { display: flex; flex-direction: column-reverse; gap: 6px; }
+    .floor-row { background: #0f172a; border-radius: 6px; padding: 6px; border: 1px solid #1e293b; }
+    .floor-name { font-size: 10px; color: #64748b; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
+    
+    .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); gap: 5px; }
+    
+    .led-card { background: #1e293b; border-radius: 6px; padding: 6px 2px; text-align: center; border: 1px solid #334155; transition: all 0.2s; cursor: pointer; }
+    .led-icon { font-size: 16px; filter: grayscale(100%) opacity(0.3); }
+    .led-card.active { border-color: #f59e0b; background: #431407; box-shadow: 0 0 8px #f59e0b; }
+    .led-card.active .led-icon { filter: grayscale(0%) opacity(1); }
+    .led-label { font-size: 9px; font-weight: bold; color: #94a3b8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .led-card.active .led-label { color: #fef08a; }
+
+    #logs { background: #020617; border: 1px solid #1e293b; height: 120px; overflow-y: auto; padding: 10px; font-family: monospace; border-radius: 8px; font-size: 11px; color: #38bdf8; }
+    .log-item { margin-bottom: 3px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h3 id="project-title" style="margin:0;">🏛️ Sa Bàn Tòa Nhà (Real-time Demo)</h3>
+      <span class="status-badge">● KẾT NỐI SẴN SÀNG</span>
+    </div>
+
+    <div class="app-controls">
+      <button class="btn-cmd btn-master" onclick="sendCmd('ALL:1')">💡 TỔNG SA BÀN (BẬT)</button>
+      <button class="btn-cmd btn-master" style="background:#ef4444;" onclick="sendCmd('ALL:0')">🔌 TẮT TẤT CẢ</button>
+      <div style="height:10px;"></div>
+      <div class="ctrl-title">Tất Cả Các Phòng</div>
+      <div class="btn-group">
+        <button class="btn-cmd" onclick="toggleTypeCmd(2)">2PN</button>
+        <button class="btn-cmd" onclick="toggleTypeCmd(3)">3PN</button>
+        <button class="btn-cmd" onclick="toggleTypeCmd(4)">4PN</button>
+        <button class="btn-cmd" onclick="toggleTypeCmd(5)">PENTHOUSE</button>
+        <button class="btn-cmd" onclick="toggleTypeCmd(6)">DUPLEX</button>
+      </div>
+      <div class="ctrl-title">Thương Mại Và Tiện Ích</div>
+      <div class="btn-group">
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(100)">SHOPHOUSE</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(201)">BEAUTYSALON</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(202)">GYM-SHCĐ</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(203)">GAME</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(204)">MEETING</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(205)">CO-WORKING</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(206)">YOGA</button>
+      </div>
+    </div>
+
+    <div id="buildings-container" class="buildings-flex">
+      <div style="text-align:center; width:100%; color:#94a3b8;">Đang nạp sơ đồ mặt bằng...</div>
+    </div>
+
+    <h4 style="margin: 15px 0 5px 0;">📝 Nhật Ký Lệnh Từ App / Web:</h4>
+    <div id="logs"></div>
+  </div>
+
+  <script>
+    const logDiv = document.getElementById('logs');
+    const container = document.getElementById('buildings-container');
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(protocol + '//' + window.location.host);
+
+    const typeStates = {};
+
+    function sendCmd(cmd) {
+      console.log("🚀 [WEB SEND]:", cmd);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(cmd);
+      }
+    }
+
+    function toggleTypeCmd(typeInt) {
+      typeStates[typeInt] = !typeStates[typeInt];
+      sendCmd('TYPE:' + typeInt + ':' + (typeStates[typeInt] ? 1 : 0));
+    }
+
+    fetch('/config')
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data && data.project_info && data.project_info.name) {
+          document.getElementById('project-title').innerText = '🏛️ ' + data.project_info.name;
+        }
+        if (data && Array.isArray(data.d)) {
+          renderBuildingLayout(data.d);
+        } else {
+          container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi: Không tìm thấy mảng dữ liệu d</div>';
+        }
+      })
+      .catch(function(err) {
+        console.error('Lỗi fetch /config:', err);
+        container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi kết nối API config</div>';
+      });
+
+    function renderBuildingLayout(rows) {
+      const bMap = {};
+      rows.forEach(function(r) {
+        const b = r[0], f = r[1], room = r[2], type = parseInt(r[3]), hw = r[4];
+        if (!bMap[b]) bMap[b] = {};
+        if (!bMap[b][f]) bMap[b][f] = [];
+        bMap[b][f].push({ room: room, type: type, hw: hw });
+      });
+
+      container.innerHTML = '';
+      Object.keys(bMap).forEach(function(bName) {
+        const col = document.createElement('div');
+        col.className = 'building-col';
+        
+        const bHeader = document.createElement('div');
+        bHeader.className = 'building-header';
+        bHeader.innerText = bName;
+        col.appendChild(bHeader);
+
+        const floorsStack = document.createElement('div');
+        floorsStack.className = 'floors-stack';
+
+        Object.keys(bMap[bName]).forEach(function(fName) {
+          const floorRow = document.createElement('div');
+          floorRow.className = 'floor-row';
+
+          const floorTitle = document.createElement('div');
+          floorTitle.className = 'floor-name';
+          floorTitle.innerText = fName;
+          floorRow.appendChild(floorTitle);
+
+          const roomsGrid = document.createElement('div');
+          roomsGrid.className = 'rooms-grid';
+
+          bMap[bName][fName].forEach(function(rm) {
+            let iconText = '🏠';
+            if (rm.type === 100 || (rm.type >= 200 && rm.type < 300)) iconText = '🏬';
+            else if (rm.type === 5) iconText = '🏰';
+            else if (rm.type === 6) iconText = '🏢';
+
+            const card = document.createElement('div');
+            card.id = 'card-' + rm.hw;
+            card.className = 'led-card';
+            card.setAttribute('data-hw', rm.hw);
+            card.setAttribute('data-type', rm.type);
+            
+            card.onclick = function() {
+              const isAct = card.classList.contains('active');
+              sendCmd(rm.hw + ':' + (isAct ? '0' : '1'));
+            };
+
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'led-icon';
+            iconDiv.innerText = iconText;
+
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'led-label';
+            labelDiv.title = rm.room;
+            labelDiv.innerText = rm.room;
+
+            card.appendChild(iconDiv);
+            card.appendChild(labelDiv);
+            roomsGrid.appendChild(card);
+          });
+
+          floorRow.appendChild(roomsGrid);
+          floorsStack.appendChild(floorRow);
+        });
+
+        col.appendChild(floorsStack);
+        container.appendChild(col);
+      });
+    }
+
+    function updateLedCard(hwIndex, isOn) {
+      const card = document.getElementById('card-' + hwIndex);
+      if (card) {
+        if (isOn) card.classList.add('active');
+        else card.classList.remove('active');
+      }
+    }
+
+    ws.onmessage = function(event) {
+      const dataStr = event.data.toString().trim();
+
+      const item = document.createElement('div');
+      item.className = 'log-item';
+      item.innerText = '[' + new Date().toLocaleTimeString() + '] ' + dataStr;
+      logDiv.appendChild(item);
+      logDiv.scrollTop = logDiv.scrollHeight;
+
+      if (dataStr.startsWith('TYPE:')) {
+        const parts = dataStr.split(':');
+        const targetType = String(parts[1]).trim();
+        const isOn = parts[2] === '1';
+
+        document.querySelectorAll('.led-card').forEach(function(c) {
+          if (String(c.getAttribute('data-type')).trim() === targetType) {
+            if (isOn) c.classList.add('active');
+            else c.classList.remove('active');
+          }
+        });
+        return;
+      }
+
+      if (dataStr.startsWith('ALL:')) {
+        const parts = dataStr.split(':');
+        const isOn = parts[1] === '1';
+
+        if (parts.length >= 3 && parts[2].trim().length > 0) {
+          const targetIds = new Set(parts[2].split(',').map(function(id) { return id.trim(); }));
+          document.querySelectorAll('.led-card').forEach(function(c) {
+            if (targetIds.has(String(c.getAttribute('data-hw')))) {
+              if (isOn) c.classList.add('active');
+              else c.classList.remove('active');
+            }
+          });
+        } else {
+          document.querySelectorAll('.led-card').forEach(function(c) {
+            if (isOn) c.classList.add('active');
+            else c.classList.remove('active');
+          });
+        }
+        return;
+      }
+
+      if (dataStr.includes(':')) {
+        const parts = dataStr.split(':');
+        const hwIndex = parts[0].trim();
+        const isOn = parts[1].trim() === '1';
+        updateLedCard(hwIndex, isOn);
+        return;
+      }
+    };
+  </script>
+</body>
+</html>
