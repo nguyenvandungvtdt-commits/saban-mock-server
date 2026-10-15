@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 15px; background: #0f172a; color: #f8fafc; margin: 0; }
-    .container { max-width: 1200px; margin: 0 auto; }
+    /* Fix tràn màn hình: Cho phép max-width rộng hơn và hiển thị cuộn ngang mượt mà */
+    .container { max-width: 100%; padding: 0 10px; margin: 0 auto; box-sizing: border-box; }
     .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 15px; }
     .status-badge { padding: 4px 12px; background: #166534; color: #4ade80; border-radius: 20px; font-weight: bold; font-size: 12px; }
 
@@ -17,24 +18,25 @@
     .btn-cmd:hover { background: #ea580c; transform: translateY(-1px); }
     .btn-master { background: #0284c7; font-size: 13px; padding: 8px 20px; border-radius: 20px; }
 
-    .buildings-flex { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
-    .building-col { flex: 1; min-width: 220px; background: #1e293b; border-radius: 12px; padding: 12px; border: 1px solid #334155; }
+    /* Layout các Tháp: Cho phép cuộn ngang toàn diện nếu màn hình hẹp */
+    .buildings-flex { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 15px; width: 100%; box-sizing: border-radius; }
+    .building-col { flex: 1; min-width: 220px; background: #1e293b; border-radius: 12px; padding: 10px; border: 1px solid #334155; box-sizing: border-box; }
     .building-header { text-align: center; font-weight: bold; color: #fef08a; padding-bottom: 8px; border-bottom: 1px solid #334155; margin-bottom: 10px; font-size: 14px; }
     
     .floors-stack { display: flex; flex-direction: column-reverse; gap: 6px; }
     .floor-row { background: #0f172a; border-radius: 6px; padding: 6px; border: 1px solid #1e293b; }
     .floor-name { font-size: 10px; color: #64748b; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
     
-    .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); gap: 5px; }
+    .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 4px; }
     
-    .led-card { background: #1e293b; border-radius: 6px; padding: 6px 2px; text-align: center; border: 1px solid #334155; transition: all 0.2s; cursor: pointer; }
-    .led-icon { font-size: 16px; filter: grayscale(100%) opacity(0.3); }
+    .led-card { background: #1e293b; border-radius: 6px; padding: 5px 2px; text-align: center; border: 1px solid #334155; transition: all 0.2s; cursor: pointer; }
+    .led-icon { font-size: 14px; filter: grayscale(100%) opacity(0.3); }
     .led-card.active { border-color: #f59e0b; background: #431407; box-shadow: 0 0 8px #f59e0b; }
     .led-card.active .led-icon { filter: grayscale(0%) opacity(1); }
-    .led-label { font-size: 9px; font-weight: bold; color: #94a3b8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .led-label { font-size: 8px; font-weight: bold; color: #94a3b8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .led-card.active .led-label { color: #fef08a; }
 
-    #logs { background: #020617; border: 1px solid #1e293b; height: 120px; overflow-y: auto; padding: 10px; font-family: monospace; border-radius: 8px; font-size: 11px; color: #38bdf8; }
+    #logs { background: #020617; border: 1px solid #1e293b; height: 100px; overflow-y: auto; padding: 10px; font-family: monospace; border-radius: 8px; font-size: 11px; color: #38bdf8; }
     .log-item { margin-bottom: 3px; }
   </style>
 </head>
@@ -97,11 +99,21 @@
       sendCmd('TYPE:' + typeInt + ':' + (typeStates[typeInt] ? 1 : 0));
     }
 
+    // Hàm làm sạch chuỗi UTF-8 tiếng Việt bị lỗi mã hóa
+    function sanitizeText(str) {
+      if (!str) return '';
+      // Loại bỏ ký tự lạ, normalize Unicode tiếng Việt
+      return str.toString()
+                .normalize('NFC')
+                .replace(/[^\x20-\x7E\u00C0-\u024F\u1EA0-\u1EF9]/g, '')
+                .trim();
+    }
+
     fetch('/config')
       .then(function(res) { return res.json(); })
       .then(function(data) {
         if (data && data.project_info && data.project_info.name) {
-          document.getElementById('project-title').innerText = '🏛️ ' + data.project_info.name;
+          document.getElementById('project-title').innerText = '🏛️ ' + sanitizeText(data.project_info.name);
         }
         if (data && Array.isArray(data.d)) {
           renderBuildingLayout(data.d);
@@ -114,21 +126,16 @@
         container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi kết nối API config</div>';
       });
 
-      // Hàm chuẩn hóa tên tòa nhà để gom nhóm chính xác (bỏ khoảng trắng thừa, viết hoa)
-    function cleanBuildingName(name) {
-      if (!name) return 'THÁP KHÁC';
-      return name.toString().trim().toUpperCase();
-    }
-
     function renderBuildingLayout(rows) {
       const bMap = {};
-      
       rows.forEach(function(r) {
-        // Chuẩn hóa tên tòa nhà để tránh bị tách thành 2 cột THÁP A khác nhau
-        const rawB = r[0];
-        const b = cleanBuildingName(rawB);
-        const f = r[1] ? r[1].toString().trim() : 'TẦNG KHÁC';
-        const room = r[2] ? r[2].toString().trim() : '';
+        const b = sanitizeText(r[0]).toUpperCase();
+        // Lấy số tầng nếu bị lỗi font chuỗi TẦNG
+        let rawF = sanitizeText(r[1]);
+        const numMatch = rawF.match(/\d+/);
+        const f = numMatch ? ('TẦNG ' + numMatch[0]) : rawF;
+
+        const room = sanitizeText(r[2]);
         const type = parseInt(r[3]);
         const hw = r[4];
 
@@ -138,8 +145,6 @@
       });
 
       container.innerHTML = '';
-
-      // Sắp xếp thứ tự tên Tháp A, Tháp B, Tháp C, Tháp D...
       const sortedBuildings = Object.keys(bMap).sort();
 
       sortedBuildings.forEach(function(bName) {
@@ -148,13 +153,12 @@
         
         const bHeader = document.createElement('div');
         bHeader.className = 'building-header';
-        bHeader.innerText = bName; // Hiển thị tên tòa tháp chuẩn
+        bHeader.innerText = bName;
         col.appendChild(bHeader);
 
         const floorsStack = document.createElement('div');
         floorsStack.className = 'floors-stack';
 
-        // Sắp xếp tầng theo số tầng giảm dần hoặc thứ tự chuẩn
         const sortedFloors = Object.keys(bMap[bName]).sort(function(a, b) {
           const numA = parseInt(a.replace(/\D/g, '')) || 0;
           const numB = parseInt(b.replace(/\D/g, '')) || 0;
@@ -212,11 +216,6 @@
         container.appendChild(col);
       });
     }
-
-    
-
-
-
 
     function updateLedCard(hwIndex, isOn) {
       const card = document.getElementById('card-' + hwIndex);
