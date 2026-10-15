@@ -114,29 +114,54 @@
         container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi kết nối API config</div>';
       });
 
+      // Hàm chuẩn hóa tên tòa nhà để gom nhóm chính xác (bỏ khoảng trắng thừa, viết hoa)
+    function cleanBuildingName(name) {
+      if (!name) return 'THÁP KHÁC';
+      return name.toString().trim().toUpperCase();
+    }
+
     function renderBuildingLayout(rows) {
       const bMap = {};
+      
       rows.forEach(function(r) {
-        const b = r[0], f = r[1], room = r[2], type = parseInt(r[3]), hw = r[4];
+        // Chuẩn hóa tên tòa nhà để tránh bị tách thành 2 cột THÁP A khác nhau
+        const rawB = r[0];
+        const b = cleanBuildingName(rawB);
+        const f = r[1] ? r[1].toString().trim() : 'TẦNG KHÁC';
+        const room = r[2] ? r[2].toString().trim() : '';
+        const type = parseInt(r[3]);
+        const hw = r[4];
+
         if (!bMap[b]) bMap[b] = {};
         if (!bMap[b][f]) bMap[b][f] = [];
         bMap[b][f].push({ room: room, type: type, hw: hw });
       });
 
       container.innerHTML = '';
-      Object.keys(bMap).forEach(function(bName) {
+
+      // Sắp xếp thứ tự tên Tháp A, Tháp B, Tháp C, Tháp D...
+      const sortedBuildings = Object.keys(bMap).sort();
+
+      sortedBuildings.forEach(function(bName) {
         const col = document.createElement('div');
         col.className = 'building-col';
         
         const bHeader = document.createElement('div');
         bHeader.className = 'building-header';
-        bHeader.innerText = bName;
+        bHeader.innerText = bName; // Hiển thị tên tòa tháp chuẩn
         col.appendChild(bHeader);
 
         const floorsStack = document.createElement('div');
         floorsStack.className = 'floors-stack';
 
-        Object.keys(bMap[bName]).forEach(function(fName) {
+        // Sắp xếp tầng theo số tầng giảm dần hoặc thứ tự chuẩn
+        const sortedFloors = Object.keys(bMap[bName]).sort(function(a, b) {
+          const numA = parseInt(a.replace(/\D/g, '')) || 0;
+          const numB = parseInt(b.replace(/\D/g, '')) || 0;
+          return numA - numB;
+        });
+
+        sortedFloors.forEach(function(fName) {
           const floorRow = document.createElement('div');
           floorRow.className = 'floor-row';
 
@@ -187,6 +212,11 @@
         container.appendChild(col);
       });
     }
+
+    
+
+
+
 
     function updateLedCard(hwIndex, isOn) {
       const card = document.getElementById('card-' + hwIndex);
