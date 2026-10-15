@@ -884,47 +884,59 @@ app.get('/', (req, res) => {
           logDiv.appendChild(item);
           logDiv.scrollTop = logDiv.scrollHeight;
 
+          // 1. Nếu là lệnh ALL (ALL:1, ALL:0, hoặc ALL:1:0,1,2,3...)
+          if (dataStr.startsWith('ALL:')) {
+            const parts = dataStr.split(':');
+            const isOn = parts[1] === '1';
+
+            // Nếu có danh sách ID phía sau (VD: ALL:1:0,1,2,3...)
+            if (parts.length >= 3 && parts[2].trim().length > 0) {
+              // Tắt hết trước rồi chỉ bật các ID có trong danh sách
+              const targetIds = new Set(parts[2].split(',').map(id => id.trim()));
+              document.querySelectorAll('.led-card').forEach(c => {
+                const hw = c.dataset.hw;
+                if (targetIds.has(hw)) {
+                  isOn ? c.classList.add('active') : c.classList.remove('active');
+                }
+              });
+            } else {
+              // Nếu chỉ có ALL:1 hoặc ALL:0 -> Bật / Tắt TOÀN BỘ
+              document.querySelectorAll('.led-card').forEach(c => {
+                isOn ? c.classList.add('active') : c.classList.remove('active');
+              });
+            }
+            return;
+          }
+
+          // 2. Nếu là lệnh TYPE (TYPE:2:1, TYPE:100:1)
+          if (dataStr.startsWith('TYPE:')) {
+            const parts = dataStr.split(':');
+            const type = parseInt(parts[1]);
+            const isOn = parts[2] === '1';
+            document.querySelectorAll('.led-card').forEach(c => {
+              if (parseInt(c.dataset.type) === type) {
+                isOn ? c.classList.add('active') : c.classList.remove('active');
+              }
+            });
+            return;
+          }
+
+          // 3. Lệnh đơn lẻ "hwIndex:state" (VD: "0:1", "12:0")
+          if (dataStr.includes(':')) {
+            const parts = dataStr.split(':');
+            const hwIndex = parts[0].trim();
+            const isOn = parts[1].trim() === '1';
+            updateLedCard(hwIndex, isOn);
+            return;
+          }
+
+          // 4. Lệnh JSON
           try {
             const data = JSON.parse(dataStr);
             if (data.hardwareIndex !== undefined) {
-              const state = data.state ?? (data.status === 'ON');
-              updateLedCard(data.hardwareIndex, state);
-              return;
-            }
-            const ids = data.leds || data.pins || [];
-            const state = data.state ?? (data.status === 'ON');
-            if (ids.length > 0) {
-              ids.forEach(id => updateLedCard(id, state));
-              return;
+              updateLedCard(data.hardwareIndex, data.state === true || data.state === 1);
             }
           } catch(e) {}
-
-          if (dataStr.startsWith('ALL:')) {
-            const parts = dataStr.split(':');
-            const state = parts[1] === '1';
-            if (parts.length > 2 && parts[2]) {
-              const ids = parts[2].split(',').map(id => id.trim());
-              ids.forEach(id => updateLedCard(id, state));
-            } else {
-              document.querySelectorAll('.led-card').forEach(c => {
-                state ? c.classList.add('active') : c.classList.remove('active');
-              });
-            }
-          } else if (dataStr.startsWith('TYPE:')) {
-            const parts = dataStr.split(':');
-            const type = parseInt(parts[1]);
-            const state = parts[2] === '1';
-            document.querySelectorAll('.led-card').forEach(c => {
-              if (parseInt(c.dataset.type) === type) {
-                state ? c.classList.add('active') : c.classList.remove('active');
-              }
-            });
-          } else if (dataStr.includes(':')) {
-            const parts = dataStr.split(':');
-            const hwIndex = parts[0].trim();
-            const state = parts[1].trim() === '1';
-            updateLedCard(hwIndex, state);
-          }
         };
       </script>
     </body>
