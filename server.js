@@ -998,54 +998,23 @@ const GIST_RAW_URL = 'https://gist.githubusercontent.com/nguyenvandungvtdt-commi
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   next();
 });
 
-// 🟢 1. API TRẢ CONFIG CHO APP FLUTTER
+// 🟢 1. API CONFIG
 app.get('/config', (req, res) => {
-  const gistUrl = GIST_RAW_URL + '?t=' + Date.now();
-  https.get(gistUrl, (response) => {
+  https.get(GIST_RAW_URL + '?t=' + Date.now(), (response) => {
     let data = '';
     response.on('data', (chunk) => { data += chunk; });
     response.on('end', () => {
-      try {
-        const jsonConfig = JSON.parse(data);
-        res.json(jsonConfig);
-      } catch (e) {
-        res.status(500).json({ error: "Lỗi parse JSON" });
-      }
+      try { res.json(JSON.parse(data)); } 
+      catch (e) { res.status(500).json({ error: "Parse error" }); }
     });
-  }).on('error', (err) => {
-    res.status(500).json({ error: "Lỗi kết nối Gist: " + err.message });
-  });
+  }).on('error', () => res.status(500).json({ error: "Fetch error" }));
 });
 
-// 🟢 2. DASHBOARD MẶT BẰNG TÒA NHÀ REAL-TIME
+// 🟢 2. DASHBOARD WEB SẠCH CÚ PHÁP
 app.get('/', (req, res) => {
-  // Tải trực tiếp Gist về để nhúng sẵn vào HTML trả về cho Trình duyệt
-  const gistUrl = GIST_RAW_URL + '?t=' + Date.now();
-  https.get(gistUrl, (response) => {
-    let data = '';
-    response.on('data', (chunk) => { data += chunk; });
-    response.on('end', () => {
-      let configJson = { d: [] };
-      try {
-        configJson = JSON.parse(data);
-      } catch (e) {
-        console.error("Lỗi parse JSON Gist khi load trang chính:", e);
-      }
-      sendHtmlResponse(res, configJson);
-    });
-  }).on('error', () => {
-    sendHtmlResponse(res, { d: [] });
-  });
-});
-
-function sendHtmlResponse(res, initialConfig) {
-  const safeConfigStr = JSON.stringify(initialConfig).replace(/</g, '\\u003c');
-  
   res.send(`
     <!DOCTYPE html>
     <html lang="vi">
@@ -1118,16 +1087,15 @@ function sendHtmlResponse(res, initialConfig) {
           </div>
         </div>
 
-        <div id="buildings-container" class="buildings-flex"></div>
+        <div id="buildings-container" class="buildings-flex">
+          <div style="text-align:center; width:100%; color:#94a3b8;">Đang nạp sơ đồ mặt bằng...</div>
+        </div>
 
         <h4 style="margin: 15px 0 5px 0;">📝 Nhật Ký Lệnh Từ App / Web:</h4>
         <div id="logs"></div>
       </div>
 
       <script>
-        // DỮ LIỆU ĐƯỢC SERVER NHÚNG SẴN TRỰC TIẾP TẠI ĐÂY
-        const INITIAL_CONFIG = ${safeConfigStr};
-
         const logDiv = document.getElementById('logs');
         const container = document.getElementById('buildings-container');
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1136,7 +1104,7 @@ function sendHtmlResponse(res, initialConfig) {
         const typeStates = {};
 
         function sendCmd(cmd) {
-          console.log("🚀 [WEB SEND CMD]:", cmd);
+          console.log("🚀 [WEB SEND]:", cmd);
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(cmd);
           }
@@ -1144,55 +1112,98 @@ function sendHtmlResponse(res, initialConfig) {
 
         function toggleTypeCmd(typeInt) {
           typeStates[typeInt] = !typeStates[typeInt];
-          const stateVal = typeStates[typeInt] ? 1 : 0;
-          sendCmd('TYPE:' + typeInt + ':' + stateVal);
+          sendCmd('TYPE:' + typeInt + ':' + (typeStates[typeInt] ? 1 : 0));
         }
 
+        fetch('/config')
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.project_info && data.project_info.name) {
+              document.getElementById('project-title').innerText = '🏛️ ' + data.project_info.name;
+            }
+            if (data && Array.isArray(data.d)) {
+              renderBuildingLayout(data.d);
+            } else {
+              container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi: Không tìm thấy dữ liệu "d"</div>';
+            }
+          })
+          .catch(function(err) {
+            console.error('Lỗi fetch /config:', err);
+            container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi nạp config từ server</div>';
+          });
+
         function renderBuildingLayout(rows) {
-          if (!rows || !rows.length) return;
           const bMap = {};
-          rows.forEach(r => {
+          rows.forEach(function(r) {
             const b = r[0], f = r[1], room = r[2], type = parseInt(r[3]), hw = r[4];
             if (!bMap[b]) bMap[b] = {};
             if (!bMap[b][f]) bMap[b][f] = [];
-            bMap[b][f].push({ room, type, hw });
+            bMap[b][f].push({ room: room, type: type, hw: hw });
           });
 
           container.innerHTML = '';
-          Object.keys(bMap).forEach(bName => {
+          Object.keys(bMap).forEach(function(bName) {
             const col = document.createElement('div');
             col.className = 'building-col';
             
-            let html = '<div class="building-header">' + bName + '</div><div class="floors-stack">';
-            
-            Object.keys(bMap[bName]).forEach(fName => {
-              html += '<div class="floor-row"><div class="floor-name">' + fName + '</div><div class="rooms-grid">';
-              bMap[bName][fName].forEach(rm => {
-                let icon = '🏠';
-                if (rm.type === 100 || (rm.type >= 200 && rm.type < 300)) icon = '🏬';
-                else if (rm.type === 5) icon = '🏰';
-                else if (rm.type === 6) icon = '🏢';
+            const bHeader = document.createElement('div');
+            bHeader.className = 'building-header';
+            bHeader.innerText = bName;
+            col.appendChild(bHeader);
 
-                html += '<div id="card-' + rm.hw + '" class="led-card" data-hw="' + rm.hw + '" data-type="' + rm.type + '" onclick="sendCmd(\'' + rm.hw + ':\' + (this.classList.contains(\'active\')?0:1))">' +
-                        '<div class="led-icon">' + icon + '</div>' +
-                        '<div class="led-label" title="' + rm.room + '">' + rm.room + '</div>' +
-                        '</div>';
+            const floorsStack = document.createElement('div');
+            floorsStack.className = 'floors-stack';
+
+            Object.keys(bMap[bName]).forEach(function(fName) {
+              const floorRow = document.createElement('div');
+              floorRow.className = 'floor-row';
+
+              const floorTitle = document.createElement('div');
+              floorTitle.className = 'floor-name';
+              floorTitle.innerText = fName;
+              floorRow.appendChild(floorTitle);
+
+              const roomsGrid = document.createElement('div');
+              roomsGrid.className = 'rooms-grid';
+
+              bMap[bName][fName].forEach(function(rm) {
+                let iconText = '🏠';
+                if (rm.type === 100 || (rm.type >= 200 && rm.type < 300)) iconText = '🏬';
+                else if (rm.type === 5) iconText = '🏰';
+                else if (rm.type === 6) iconText = '🏢';
+
+                const card = document.createElement('div');
+                card.id = 'card-' + rm.hw;
+                card.className = 'led-card';
+                card.setAttribute('data-hw', rm.hw);
+                card.setAttribute('data-type', rm.type);
+                
+                card.onclick = function() {
+                  const isAct = card.classList.contains('active');
+                  sendCmd(rm.hw + ':' + (isAct ? '0' : '1'));
+                };
+
+                const iconDiv = document.createElement('div');
+                iconDiv.className = 'led-icon';
+                iconDiv.innerText = iconText;
+
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'led-label';
+                labelDiv.title = rm.room;
+                labelDiv.innerText = rm.room;
+
+                card.appendChild(iconDiv);
+                card.appendChild(labelDiv);
+                roomsGrid.appendChild(card);
               });
-              html += '</div></div>';
+
+              floorRow.appendChild(roomsGrid);
+              floorsStack.appendChild(floorRow);
             });
 
-            html += '</div>';
-            col.innerHTML = html;
+            col.appendChild(floorsStack);
             container.appendChild(col);
           });
-        }
-
-        // VẼ MẶT BẰNG NGAY LẬP TỨC VỚI DỮ LIỆU ĐÃ NHÚNG
-        if (INITIAL_CONFIG && INITIAL_CONFIG.d) {
-          if (INITIAL_CONFIG.project_info && INITIAL_CONFIG.project_info.name) {
-            document.getElementById('project-title').innerText = '🏛️ ' + INITIAL_CONFIG.project_info.name;
-          }
-          renderBuildingLayout(INITIAL_CONFIG.d);
         }
 
         function updateLedCard(hwIndex, isOn) {
@@ -1203,7 +1214,7 @@ function sendHtmlResponse(res, initialConfig) {
           }
         }
 
-        ws.onmessage = (event) => {
+        ws.onmessage = function(event) {
           const dataStr = event.data.toString().trim();
 
           const item = document.createElement('div');
@@ -1217,8 +1228,8 @@ function sendHtmlResponse(res, initialConfig) {
             const targetType = String(parts[1]).trim();
             const isOn = parts[2] === '1';
 
-            document.querySelectorAll('.led-card').forEach(c => {
-              if (String(c.dataset.type).trim() === targetType) {
+            document.querySelectorAll('.led-card').forEach(function(c) {
+              if (String(c.getAttribute('data-type')).trim() === targetType) {
                 if (isOn) c.classList.add('active');
                 else c.classList.remove('active');
               }
@@ -1231,15 +1242,15 @@ function sendHtmlResponse(res, initialConfig) {
             const isOn = parts[1] === '1';
 
             if (parts.length >= 3 && parts[2].trim().length > 0) {
-              const targetIds = new Set(parts[2].split(',').map(id => id.trim()));
-              document.querySelectorAll('.led-card').forEach(c => {
-                if (targetIds.has(String(c.dataset.hw))) {
+              const targetIds = new Set(parts[2].split(',').map(function(id) { return id.trim(); }));
+              document.querySelectorAll('.led-card').forEach(function(c) {
+                if (targetIds.has(String(c.getAttribute('data-hw')))) {
                   if (isOn) c.classList.add('active');
                   else c.classList.remove('active');
                 }
               });
             } else {
-              document.querySelectorAll('.led-card').forEach(c => {
+              document.querySelectorAll('.led-card').forEach(function(c) {
                 if (isOn) c.classList.add('active');
                 else c.classList.remove('active');
               });
@@ -1259,16 +1270,16 @@ function sendHtmlResponse(res, initialConfig) {
     </body>
     </html>
   `);
-}
+});
 
-// 🟢 3. WEBSOCKET SERVER LISTENERS
-wss.on('connection', (ws) => {
-  console.log('🟢 [SERVER] WS Client kết nối');
+// 🟢 3. WEBSOCKET LISTENER
+wss.on('connection', function(ws) {
+  console.log('🟢 [SERVER] Client kết nối');
   ws.send(JSON.stringify({ status: "connected", device: "ESP32_MOCK_SERVER" }));
 
-  ws.on('message', (message) => {
+  ws.on('message', function(message) {
     const rawData = message.toString().trim();
-    wss.clients.forEach(client => {
+    wss.clients.forEach(function(client) {
       if (client.readyState === WebSocket.OPEN) {
         client.send(rawData);
       }
@@ -1276,4 +1287,6 @@ wss.on('connection', (ws) => {
   });
 });
 
-server.listen(port, () => console.log(`Server running on port ${port}`));
+server.listen(port, function() {
+  console.log('Server running on port ' + port);
+});
