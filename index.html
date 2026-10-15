@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="vi">
 <head>
   <title>Sa Bàn Demo - Live Control Dashboard</title>
@@ -296,4 +296,221 @@
     };
   </script>
 </body>
-</html>
+</html> -->
+<script>
+    const logDiv = document.getElementById('logs');
+    const container = document.getElementById('buildings-container');
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(protocol + '//' + window.location.host);
+
+    const typeStates = {};
+
+    function sendCmd(cmd) {
+      console.log("🚀 [WEB SEND]:", cmd);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(cmd);
+      }
+    }
+
+    function toggleTypeCmd(typeInt) {
+      typeStates[typeInt] = !typeStates[typeInt];
+      sendCmd('TYPE:' + typeInt + ':' + (typeStates[typeInt] ? 1 : 0));
+    }
+
+    // 🟢 HÀM ÉP TÊN THÁP CHUẨN 100% (CHỈ LẤY CHỮ CÁI A, B, C, D, E...)
+    function parseBuildingName(rawStr) {
+      if (!rawStr) return 'THÁP KHÁC';
+      const clean = rawStr.toString().trim().toUpperCase();
+      
+      // Tìm chữ cái đại diện tòa nhà (A, B, C, D, E)
+      if (clean.includes('A')) return 'THÁP A';
+      if (clean.includes('B')) return 'THÁP B';
+      if (clean.includes('C')) return 'THÁP C';
+      if (clean.includes('D')) return 'THÁP D';
+      if (clean.includes('E')) return 'THÁP E';
+      if (clean.includes('F')) return 'THÁP F';
+      
+      return 'THÁP KHÁC';
+    }
+
+    // 🟢 HÀM BẮT SỐ TẦNG CHUẨN (ÉP VỀ "TẦNG X")
+    function parseFloorName(rawStr) {
+      if (!rawStr) return 'TẦNG KHÁC';
+      const str = rawStr.toString().trim();
+      const numMatch = str.match(/\d+/);
+      return numMatch ? ('TẦNG ' + numMatch[0]) : str.toUpperCase();
+    }
+
+    // Nạp config kèm cờ chống Cache (t=Timestamp)
+    fetch('/config?t=' + Date.now())
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data && data.project_info && data.project_info.name) {
+          document.getElementById('project-title').innerText = '🏛️ ' + data.project_info.name;
+        }
+        if (data && Array.isArray(data.d)) {
+          renderBuildingLayout(data.d);
+        } else {
+          container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi: Không tìm thấy mảng dữ liệu d</div>';
+        }
+      })
+      .catch(function(err) {
+        console.error('Lỗi fetch /config:', err);
+        container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi kết nối API config</div>';
+      });
+
+    function renderBuildingLayout(rows) {
+      const bMap = {};
+      
+      rows.forEach(function(r) {
+        const b = parseBuildingName(r[0]); // Bắt buộc ép tên Tháp chuẩn A, B, C...
+        const f = parseFloorName(r[1]);    // Bắt buộc ép Tầng chuẩn
+        const room = r[2] ? r[2].toString().trim() : '';
+        const type = parseInt(r[3]);
+        const hw = r[4];
+
+        if (!bMap[b]) bMap[b] = {};
+        if (!bMap[b][f]) bMap[b][f] = [];
+        bMap[b][f].push({ room: room, type: type, hw: hw });
+      });
+
+      container.innerHTML = '';
+      
+      // Thứ tự ưu tiên sắp xếp các Tháp chuẩn
+      const buildingOrder = ['THÁP A', 'THÁP B', 'THÁP C', 'THÁP D', 'THÁP E', 'THÁP F', 'THÁP KHÁC'];
+      const sortedBuildings = Object.keys(bMap).sort(function(a, b) {
+        return buildingOrder.indexOf(a) - buildingOrder.indexOf(b);
+      });
+
+      sortedBuildings.forEach(function(bName) {
+        const col = document.createElement('div');
+        col.className = 'building-col';
+        
+        const bHeader = document.createElement('div');
+        bHeader.className = 'building-header';
+        bHeader.innerText = bName;
+        col.appendChild(bHeader);
+
+        const floorsStack = document.createElement('div');
+        floorsStack.className = 'floors-stack';
+
+        // Sắp xếp tầng từ thấp đến cao (Tầng 1 ở dưới cùng)
+        const sortedFloors = Object.keys(bMap[bName]).sort(function(a, b) {
+          const numA = parseInt(a.replace(/\D/g, '')) || 0;
+          const numB = parseInt(b.replace(/\D/g, '')) || 0;
+          return numA - numB;
+        });
+
+        sortedFloors.forEach(function(fName) {
+          const floorRow = document.createElement('div');
+          floorRow.className = 'floor-row';
+
+          const floorTitle = document.createElement('div');
+          floorTitle.className = 'floor-name';
+          floorTitle.innerText = fName;
+          floorRow.appendChild(floorTitle);
+
+          const roomsGrid = document.createElement('div');
+          roomsGrid.className = 'rooms-grid';
+
+          bMap[bName][fName].forEach(function(rm) {
+            let iconText = '🏠';
+            if (rm.type === 100 || (rm.type >= 200 && rm.type < 300)) iconText = '🏬';
+            else if (rm.type === 5) iconText = '🏰';
+            else if (rm.type === 6) iconText = '🏢';
+
+            const card = document.createElement('div');
+            card.id = 'card-' + rm.hw;
+            card.className = 'led-card';
+            card.setAttribute('data-hw', rm.hw);
+            card.setAttribute('data-type', rm.type);
+            
+            card.onclick = function() {
+              const isAct = card.classList.contains('active');
+              sendCmd(rm.hw + ':' + (isAct ? '0' : '1'));
+            };
+
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'led-icon';
+            iconDiv.innerText = iconText;
+
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'led-label';
+            labelDiv.title = rm.room;
+            labelDiv.innerText = rm.room;
+
+            card.appendChild(iconDiv);
+            card.appendChild(labelDiv);
+            roomsGrid.appendChild(card);
+          });
+
+          floorRow.appendChild(roomsGrid);
+          floorsStack.appendChild(floorRow);
+        });
+
+        col.appendChild(floorsStack);
+        container.appendChild(col);
+      });
+    }
+
+    function updateLedCard(hwIndex, isOn) {
+      const card = document.getElementById('card-' + hwIndex);
+      if (card) {
+        if (isOn) card.classList.add('active');
+        else card.classList.remove('active');
+      }
+    }
+
+    ws.onmessage = function(event) {
+      const dataStr = event.data.toString().trim();
+
+      const item = document.createElement('div');
+      item.className = 'log-item';
+      item.innerText = '[' + new Date().toLocaleTimeString() + '] ' + dataStr;
+      logDiv.appendChild(item);
+      logDiv.scrollTop = logDiv.scrollHeight;
+
+      if (dataStr.startsWith('TYPE:')) {
+        const parts = dataStr.split(':');
+        const targetType = String(parts[1]).trim();
+        const isOn = parts[2] === '1';
+
+        document.querySelectorAll('.led-card').forEach(function(c) {
+          if (String(c.getAttribute('data-type')).trim() === targetType) {
+            if (isOn) c.classList.add('active');
+            else c.classList.remove('active');
+          }
+        });
+        return;
+      }
+
+      if (dataStr.startsWith('ALL:')) {
+        const parts = dataStr.split(':');
+        const isOn = parts[1] === '1';
+
+        if (parts.length >= 3 && parts[2].trim().length > 0) {
+          const targetIds = new Set(parts[2].split(',').map(function(id) { return id.trim(); }));
+          document.querySelectorAll('.led-card').forEach(function(c) {
+            if (targetIds.has(String(c.getAttribute('data-hw')))) {
+              if (isOn) c.classList.add('active');
+              else c.classList.remove('active');
+            }
+          });
+        } else {
+          document.querySelectorAll('.led-card').forEach(function(c) {
+            if (isOn) c.classList.add('active');
+            else c.classList.remove('active');
+          });
+        }
+        return;
+      }
+
+      if (dataStr.includes(':')) {
+        const parts = dataStr.split(':');
+        const hwIndex = parts[0].trim();
+        const isOn = parts[1].trim() === '1';
+        updateLedCard(hwIndex, isOn);
+        return;
+      }
+    };
+  </script>
