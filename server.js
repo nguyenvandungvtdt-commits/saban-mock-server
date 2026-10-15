@@ -1003,7 +1003,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🟢 1. API TRA CONFIG TỪ GIST
+// 🟢 1. API TRẢ CONFIG CHO APP FLUTTER
 app.get('/config', (req, res) => {
   const gistUrl = GIST_RAW_URL + '?t=' + Date.now();
   https.get(gistUrl, (response) => {
@@ -1022,8 +1022,30 @@ app.get('/config', (req, res) => {
   });
 });
 
-// 🟢 2. DASHBOARD WEBSOCKET VỚI INLINE DATA KHÔNG BỊ TRANG TRẮNG
+// 🟢 2. DASHBOARD MẶT BẰNG TÒA NHÀ REAL-TIME
 app.get('/', (req, res) => {
+  // Tải trực tiếp Gist về để nhúng sẵn vào HTML trả về cho Trình duyệt
+  const gistUrl = GIST_RAW_URL + '?t=' + Date.now();
+  https.get(gistUrl, (response) => {
+    let data = '';
+    response.on('data', (chunk) => { data += chunk; });
+    response.on('end', () => {
+      let configJson = { d: [] };
+      try {
+        configJson = JSON.parse(data);
+      } catch (e) {
+        console.error("Lỗi parse JSON Gist khi load trang chính:", e);
+      }
+      sendHtmlResponse(res, configJson);
+    });
+  }).on('error', () => {
+    sendHtmlResponse(res, { d: [] });
+  });
+});
+
+function sendHtmlResponse(res, initialConfig) {
+  const safeConfigStr = JSON.stringify(initialConfig).replace(/</g, '\\u003c');
+  
   res.send(`
     <!DOCTYPE html>
     <html lang="vi">
@@ -1103,6 +1125,9 @@ app.get('/', (req, res) => {
       </div>
 
       <script>
+        // DỮ LIỆU ĐƯỢC SERVER NHÚNG SẴN TRỰC TIẾP TẠI ĐÂY
+        const INITIAL_CONFIG = ${safeConfigStr};
+
         const logDiv = document.getElementById('logs');
         const container = document.getElementById('buildings-container');
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1162,18 +1187,13 @@ app.get('/', (req, res) => {
           });
         }
 
-        // Tải config từ server để cập nhật nếu có thay đổi
-        fetch('/config')
-          .then(res => res.json())
-          .then(data => {
-            if (data && data.d && data.d.length > 0) {
-              if (data.project_info && data.project_info.name) {
-                document.getElementById('project-title').innerText = '🏛️ ' + data.project_info.name;
-              }
-              renderBuildingLayout(data.d);
-            }
-          })
-          .catch(e => console.log('Sử dụng dữ liệu khởi tạo mặc định'));
+        // VẼ MẶT BẰNG NGAY LẬP TỨC VỚI DỮ LIỆU ĐÃ NHÚNG
+        if (INITIAL_CONFIG && INITIAL_CONFIG.d) {
+          if (INITIAL_CONFIG.project_info && INITIAL_CONFIG.project_info.name) {
+            document.getElementById('project-title').innerText = '🏛️ ' + INITIAL_CONFIG.project_info.name;
+          }
+          renderBuildingLayout(INITIAL_CONFIG.d);
+        }
 
         function updateLedCard(hwIndex, isOn) {
           const card = document.getElementById('card-' + hwIndex);
@@ -1239,8 +1259,9 @@ app.get('/', (req, res) => {
     </body>
     </html>
   `);
-});
+}
 
+// 🟢 3. WEBSOCKET SERVER LISTENERS
 wss.on('connection', (ws) => {
   console.log('🟢 [SERVER] WS Client kết nối');
   ws.send(JSON.stringify({ status: "connected", device: "ESP32_MOCK_SERVER" }));
