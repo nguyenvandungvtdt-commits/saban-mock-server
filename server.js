@@ -802,14 +802,12 @@ app.get('/', (req, res) => {
         <h4 style="margin: 15px 0 5px 0;">📝 Nhật Ký Lệnh Từ App / Web:</h4>
         <div id="logs"></div>
       </div>
-
       <script>
         const logDiv = document.getElementById('logs');
         const container = document.getElementById('buildings-container');
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(protocol + '//' + window.location.host);
 
-        // Lưu trạng thái toggle theo từng TYPE
         const typeStates = {};
 
         function sendCmd(cmd) {
@@ -819,24 +817,43 @@ app.get('/', (req, res) => {
           }
         }
 
-        // Tự động đảo trạng thái Bật/Tắt khi bấm nút trên Web
         function toggleTypeCmd(typeInt) {
           typeStates[typeInt] = !typeStates[typeInt];
           const stateVal = typeStates[typeInt] ? 1 : 0;
           sendCmd('TYPE:' + typeInt + ':' + stateVal);
         }
 
-        fetch('/config')
-          .then(res => res.json())
+        // 🟢 TẢI CONFIG TRỰC TIẾP TỪ GIST BẰNG CDN CHỐNG CACHE
+        const GIST_URL = 'https://gist.githubusercontent.com/nguyenvandungvtdt-commits/b3440aa5a5ab9e6e69bb570b389c88cb/raw/config.json?t=' + Date.now();
+
+        fetch(GIST_URL)
+          .then(res => {
+            if (!res.ok) throw new Error('Http status ' + res.status);
+            return res.json();
+          })
           .then(data => {
+            console.log("✅ Đã nạp thành công config từ Gist, số dòng d:", data.d ? data.d.length : 0);
             if (data.project_info && data.project_info.name) {
               document.getElementById('project-title').innerText = '🏛️ ' + data.project_info.name;
             }
             if (data.d && Array.isArray(data.d)) {
               renderBuildingLayout(data.d);
+            } else {
+              container.innerHTML = '<div style="color:#ef4444; text-align:center; width:100%;">⚠️ Không tìm thấy mảng dữ liệu d!</div>';
             }
           })
-          .catch(e => console.error(e));
+          .catch(e => {
+            console.error('Lỗi nạp config:', e);
+            // Fallback nạp qua API Render nội bộ nếu Gist bị chặn
+            fetch('/config')
+              .then(res => res.json())
+              .then(data => {
+                if (data.d) renderBuildingLayout(data.d);
+              })
+              .catch(err => {
+                container.innerHTML = '<div style="color:#ef4444; text-align:center; width:100%;">❌ Không thể tải mặt bằng. Vui lòng F5 lại trang!</div>';
+              });
+          });
 
         function renderBuildingLayout(rows) {
           const bMap = {};
@@ -894,7 +911,6 @@ app.get('/', (req, res) => {
           logDiv.appendChild(item);
           logDiv.scrollTop = logDiv.scrollHeight;
 
-          // 1. Xử lý lệnh TYPE (TYPE:2:1 hoặc TYPE:100:1)
           if (dataStr.startsWith('TYPE:')) {
             const parts = dataStr.split(':');
             const targetType = String(parts[1]).trim();
@@ -909,7 +925,6 @@ app.get('/', (req, res) => {
             return;
           }
 
-          // 2. Xử lý lệnh ALL (ALL:1, ALL:0, ALL:1:0,1,2,3...)
           if (dataStr.startsWith('ALL:')) {
             const parts = dataStr.split(':');
             const isOn = parts[1] === '1';
@@ -931,7 +946,6 @@ app.get('/', (req, res) => {
             return;
           }
 
-          // 3. Xử lý lệnh đơn lẻ "hwIndex:state" (VD: "0:1", "12:0")
           if (dataStr.includes(':')) {
             const parts = dataStr.split(':');
             const hwIndex = parts[0].trim();
@@ -940,6 +954,9 @@ app.get('/', (req, res) => {
             return;
           }
         };
+      </script>
+
+
       </script>
       </script>
     </body>
