@@ -996,7 +996,6 @@ const wss = new WebSocket.Server({ server });
 
 const GIST_RAW_URL = 'https://gist.githubusercontent.com/nguyenvandungvtdt-commits/b3440aa5a5ab9e6e69bb570b389c88cb/raw/config.json';
 
-// CORS Middleware
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -1004,7 +1003,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🟢 1. API TRẢ CONFIG CHO FLUTTER APP VÀ WEB
+// 🟢 1. API TRA CONFIG TỪ GIST
 app.get('/config', (req, res) => {
   const gistUrl = GIST_RAW_URL + '?t=' + Date.now();
   https.get(gistUrl, (response) => {
@@ -1015,7 +1014,7 @@ app.get('/config', (req, res) => {
         const jsonConfig = JSON.parse(data);
         res.json(jsonConfig);
       } catch (e) {
-        res.status(500).json({ error: "Lỗi parse JSON từ Gist" });
+        res.status(500).json({ error: "Lỗi parse JSON" });
       }
     });
   }).on('error', (err) => {
@@ -1023,7 +1022,7 @@ app.get('/config', (req, res) => {
   });
 });
 
-// 🟢 2. DASHBOARD GIAO DIỆN MẶT BẰNG WEBSOCKET
+// 🟢 2. DASHBOARD WEBSOCKET VỚI INLINE DATA KHÔNG BỊ TRANG TRẮNG
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -1097,9 +1096,7 @@ app.get('/', (req, res) => {
           </div>
         </div>
 
-        <div id="buildings-container" class="buildings-flex">
-          <div style="color:#94a3b8; text-align:center; width:100%;">Đang nạp sơ đồ mặt bằng sa bàn...</div>
-        </div>
+        <div id="buildings-container" class="buildings-flex"></div>
 
         <h4 style="margin: 15px 0 5px 0;">📝 Nhật Ký Lệnh Từ App / Web:</h4>
         <div id="logs"></div>
@@ -1126,25 +1123,8 @@ app.get('/', (req, res) => {
           sendCmd('TYPE:' + typeInt + ':' + stateVal);
         }
 
-        // TẢI CONFIG TRỰC TIẾP TỪ RENDER
-        fetch('/config')
-          .then(res => res.json())
-          .then(data => {
-            if (data && data.d && Array.isArray(data.d) && data.d.length > 0) {
-              if (data.project_info && data.project_info.name) {
-                document.getElementById('project-title').innerText = '🏛️ ' + data.project_info.name;
-              }
-              renderBuildingLayout(data.d);
-            } else {
-              container.innerHTML = '<div style="color:#ef4444; text-align:center; width:100%;">⚠️ Không tìm thấy mảng d trong Config</div>';
-            }
-          })
-          .catch(e => {
-            console.error('Lỗi nạp config:', e);
-            container.innerHTML = '<div style="color:#ef4444; text-align:center; width:100%;">❌ Không thể tải mặt bằng. Vui lòng F5 lại trang!</div>';
-          });
-
         function renderBuildingLayout(rows) {
+          if (!rows || !rows.length) return;
           const bMap = {};
           rows.forEach(r => {
             const b = r[0], f = r[1], room = r[2], type = parseInt(r[3]), hw = r[4];
@@ -1181,6 +1161,19 @@ app.get('/', (req, res) => {
             container.appendChild(col);
           });
         }
+
+        // Tải config từ server để cập nhật nếu có thay đổi
+        fetch('/config')
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.d && data.d.length > 0) {
+              if (data.project_info && data.project_info.name) {
+                document.getElementById('project-title').innerText = '🏛️ ' + data.project_info.name;
+              }
+              renderBuildingLayout(data.d);
+            }
+          })
+          .catch(e => console.log('Sử dụng dữ liệu khởi tạo mặc định'));
 
         function updateLedCard(hwIndex, isOn) {
           const card = document.getElementById('card-' + hwIndex);
@@ -1248,16 +1241,12 @@ app.get('/', (req, res) => {
   `);
 });
 
-// 🟢 3. WEBSOCKET SERVER LISTENER DÙNG CHUẨN ws.on('message')
 wss.on('connection', (ws) => {
-  console.log('🟢 [SERVER] Client mới kết nối WebSocket');
+  console.log('🟢 [SERVER] WS Client kết nối');
   ws.send(JSON.stringify({ status: "connected", device: "ESP32_MOCK_SERVER" }));
 
-  // CHÚ Ý: Trong Node.js dùng .on('message')
   ws.on('message', (message) => {
     const rawData = message.toString().trim();
-    console.log("📩 [SERVER RECEIVED]:", rawData);
-
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(rawData);
