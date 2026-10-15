@@ -622,52 +622,66 @@ app.get('/', (req, res) => {
         ws.onmessage = (event) => {
           const dataStr = event.data.toString().trim();
           
+          // Ghi nhật ký vào khung Log trên Web
           const item = document.createElement('div');
           item.className = 'log-item';
           item.innerText = '[' + new Date().toLocaleTimeString() + '] ' + dataStr;
           logDiv.appendChild(item);
           logDiv.scrollTop = logDiv.scrollHeight;
 
+          // 🟢 1. XỬ LÝ LỆNH DẠNG JSON TỪ APP FLUTTER
           try {
             const data = JSON.parse(dataStr);
+            
+            // Nếu là lệnh điều khiển 1 phòng đơn lẻ: {"hardwareIndex": 0, "state": true}
             if (data.hardwareIndex !== undefined) {
-              const state = data.state ?? (data.status === 'ON');
+              const state = (data.state === true || data.state === 1 || data.status === 'ON');
               updateLedCard(data.hardwareIndex, state);
               return;
             }
+            
+            // Nếu là lệnh điều khiển nhóm LED: {"leds": [0,1,2], "state": true}
             const ids = data.leds || data.pins || [];
-            const state = data.state ?? (data.status === 'ON');
             if (ids.length > 0) {
+              const state = (data.state === true || data.state === 1 || data.status === 'ON');
               ids.forEach(id => updateLedCard(id, state));
               return;
             }
-          } catch(e) {}
+          } catch(e) {
+            // Không phải JSON -> Xử lý tiếp dạng String thô
+          }
 
-          if (dataStr.startsWith('ALL:')) {
-            const parts = dataStr.split(':');
-            const state = parts[1] === '1';
-            if (parts.length > 2 && parts[2]) {
-              const ids = parts[2].split(',').map(id => id.trim());
-              ids.forEach(id => updateLedCard(id, state));
-            } else {
-              document.querySelectorAll('.led-card').forEach(c => {
-                state ? c.classList.add('active') : c.classList.remove('active');
-              });
-            }
-          } else if (dataStr.startsWith('TYPE:')) {
+          // 🟢 2. XỬ LÝ LỆNH "ALL:1" HOẶC "ALL:0" HOẶC "ALL:BẬT" / "ALL:TẮT"
+          if (dataStr.startsWith('ALL:') || dataStr.startsWith('TOGGLE_ALL')) {
+            const isOff = dataStr.includes(':0') || dataStr.includes('OFF') || dataStr.includes('FALSE') || dataStr.includes('TẮT');
+            const isOn = !isOff; // Nếu không chứa cờ tắt thì mặc định là Bật
+
+            document.querySelectorAll('.led-card').forEach(c => {
+              if (isOn) c.classList.add('active');
+              else c.classList.remove('active');
+            });
+          } 
+          // 🟢 3. XỬ LÝ LỆNH THEO PHÂN LOẠI PHÒNG (2PN, 3PN, SHOPHOUSE): "TYPE:2:1" HOẶC "TYPE:100:1"
+          else if (dataStr.startsWith('TYPE:')) {
             const parts = dataStr.split(':');
             const type = parseInt(parts[1]);
-            const state = parts[2] === '1';
+            const isOff = parts[2] === '0' || parts[2] === 'false';
+            const isOn = !isOff;
+
             document.querySelectorAll('.led-card').forEach(c => {
               if (parseInt(c.dataset.type) === type) {
-                state ? c.classList.add('active') : c.classList.remove('active');
+                if (isOn) c.classList.add('active');
+                else c.classList.remove('active');
               }
             });
-          } else if (dataStr.includes(':')) {
+          } 
+          // 🟢 4. XỬ LÝ LỆNH CHUỖI ĐƠN LẺ: "0:1" (Bật LED 0) hoặc "0:0" (Tắt LED 0)
+          else if (dataStr.includes(':')) {
             const parts = dataStr.split(':');
             const hwIndex = parts[0].trim();
-            const state = parts[1].trim() === '1';
-            updateLedCard(hwIndex, state);
+            const stateStr = parts[1].trim();
+            const isOn = (stateStr === '1' || stateStr.toLowerCase() === 'true' || stateStr.toUpperCase() === 'ON');
+            updateLedCard(hwIndex, isOn);
           }
         };
       </script>
