@@ -8,36 +8,40 @@ const port = process.env.PORT || 3000;
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// 🟢 THÊM API TRẢ VỀ CONFIG JSON CHO APP FLUTTER
-app.get('/config', (req, res) => {
+// Link GitHub Gist Raw chứa cấu hình chuẩn mà script Python đẩy lên
+const GIST_RAW_URL = 'https://gist.githubusercontent.com/nguyenvandungvtdt-commits/b3440aa5a5ab9e6e69bb570b389c88cb/raw/config.json';
+
+// 🟢 1. API CẤU HÌNH: LẤY TRỰC TIẾP TỪ GITHUB GIST ĐỂ ĐỒNG BỘ NGUYÊN BẢN
+app.get('/config', async (req, res) => {
+  try {
+    const response = await fetch(`${GIST_RAW_URL}?t=${Date.now()}`);
+    if (response.ok) {
+      const data = await response.json();
+      return res.json(data);
+    }
+  } catch (e) {
+    console.error('Lỗi tải Gist từ Server:', e);
+  }
+
+  // Fallback nếu Gist bị nghẽn
   res.json({
-    "assets": {
-      "background": "assets/images/background.png"
-    },
-    "buildings": [
-      {
-        "id": "sa_ban",
-        "name": "TỔNG SA BÀN",
-        "floors": [
-          {
-            "id": "tien_ich",
-            "name": "THƯƠNG MẠI VÀ TIỆN ÍCH",
-            "rooms": [
-              { "id": 100, "name": "SHOPHOUSE", "hardwareIndex": 100 },
-              { "id": 201, "name": "BEAUTYSALON", "hardwareIndex": 201 },
-              { "id": 202, "name": "GYM-SHCĐ", "hardwareIndex": 202 },
-              { "id": 203, "name": "GAME", "hardwareIndex": 203 },
-              { "id": 204, "name": "MEETING", "hardwareIndex": 204 },
-              { "id": 205, "name": "CO-WORKING", "hardwareIndex": 205 },
-              { "id": 206, "name": "YOGA", "hardwareIndex": 206 }
-            ]
-          }
-        ]
-      }
+    "project_info": { "name": "Dự Án Sa Bàn Tòa Nhà" },
+    "d": [
+      ["THÁP A", "TẦNG 01", "Shophouse-A101", 100, 0, "Shophouse khối đế | Thương mại dịch vụ"],
+      ["THÁP A", "TẦNG 01", "Shophouse-A102", 100, 1, "Shophouse khối đế | Thương mại dịch vụ"],
+      ["THÁP A", "TẦNG 01", "Shophouse-A103", 100, 2, "Shophouse khối đế | Thương mại dịch vụ"],
+      ["THÁP A", "TẦNG 01", "Sảnh AB", 200, 3, "Sảnh Tòa Nhà"],
+      ["THÁP A", "TẦNG 02", "BeautySalon A", 201, 4, "BeautySalon"],
+      ["THÁP A", "TẦNG 02", "Gym-SHCĐ A", 202, 5, "Gym / SHCĐ"],
+      ["THÁP A", "TẦNG 02", "Game", 203, 6, "Khu Game"],
+      ["THÁP A", "TẦNG 02", "Meeting AB", 204, 7, "Phòng Lấy Ý Kiến / Trực"],
+      ["THÁP A", "TẦNG 03", "A301-2BR", 2, 8, "Căn hộ 2 Phòng ngủ | Sẵn sàng điều khiển"],
+      ["THÁP A", "TẦNG 03", "A302-3BR", 3, 9, "Căn hộ 3 Phòng ngủ | Sẵn sàng điều khiển"]
     ]
   });
 });
 
+// 🟢 2. TRANG WEB DASHBOARD CHO APPLE REVIEWER (TỰ ĐỘNG LẤY NÚT BẤM TỪ GIST)
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -48,18 +52,18 @@ app.get('/', (req, res) => {
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; background: #0f172a; color: #f8fafc; margin: 0; }
-        .container { max-width: 900px; margin: 0 auto; }
+        .container { max-width: 1000px; margin: 0 auto; }
         .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 15px; }
         .status-badge { padding: 6px 14px; background: #166534; color: #4ade80; border-radius: 20px; font-weight: bold; font-size: 13px; }
         
         .board { background: #1e293b; border-radius: 16px; padding: 24px; margin: 20px 0; border: 1px solid #334155; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
-        .led-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px; margin-top: 20px; }
+        .led-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-top: 20px; }
         
-        .led-card { background: #0f172a; border-radius: 12px; padding: 18px 10px; text-align: center; border: 1px solid #334155; transition: all 0.3s ease; }
-        .led-icon { font-size: 48px; filter: grayscale(100%) opacity(0.25); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .led-card { background: #0f172a; border-radius: 12px; padding: 16px 8px; text-align: center; border: 1px solid #334155; transition: all 0.3s ease; }
+        .led-icon { font-size: 38px; filter: grayscale(100%) opacity(0.25); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .led-card.active { border-color: #f59e0b; background: #1e1b4b; }
         .led-card.active .led-icon { filter: grayscale(0%) opacity(1); transform: scale(1.1); drop-shadow: 0 0 18px #f59e0b; }
-        .led-label { font-size: 13px; font-weight: 600; margin-top: 10px; color: #94a3b8; }
+        .led-label { font-size: 12px; font-weight: 600; margin-top: 8px; color: #94a3b8; word-break: break-word; }
         .led-card.active .led-label { color: #fef08a; }
 
         #logs { background: #020617; border: 1px solid #1e293b; height: 180px; overflow-y: auto; padding: 14px; font-family: 'Courier New', monospace; border-radius: 10px; font-size: 12px; color: #38bdf8; }
@@ -69,20 +73,14 @@ app.get('/', (req, res) => {
     <body>
       <div class="container">
         <div class="header">
-          <h2>🏛️ ESP32 Sa Ban Mock Dashboard</h2>
+          <h2 id="project-title">🏛️ ESP32 Sa Ban Mock Dashboard</h2>
           <span class="status-badge">● ONLINE & WAITING FOR APP</span>
         </div>
 
         <div class="board">
           <h3 style="margin:0; color:#e2e8f0;">💡 Trạng Thái Đèn Sa Bàn Real-time</h3>
-          <div class="led-grid">
-            <div id="card-100" class="led-card"><div class="led-icon">🏬</div><div class="led-label">SHOPHOUSE (100)</div></div>
-            <div id="card-201" class="led-card"><div class="led-icon">💅</div><div class="led-label">BEAUTYSALON (201)</div></div>
-            <div id="card-202" class="led-card"><div class="led-icon">🏋️</div><div class="led-label">GYM-SHCĐ (202)</div></div>
-            <div id="card-203" class="led-card"><div class="led-icon">🎮</div><div class="led-label">GAME (203)</div></div>
-            <div id="card-204" class="led-card"><div class="led-icon">🤝</div><div class="led-label">MEETING (204)</div></div>
-            <div id="card-205" class="led-card"><div class="led-icon">💻</div><div class="led-label">CO-WORKING (205)</div></div>
-            <div id="card-206" class="led-card"><div class="led-icon">🧘</div><div class="led-label">YOGA (206)</div></div>
+          <div id="led-grid" class="led-grid">
+            <div style="color:#94a3b8; grid-column: 1/-1; text-align:center;">Đang tải danh sách không gian sa bàn từ Cloud...</div>
           </div>
         </div>
 
@@ -92,8 +90,39 @@ app.get('/', (req, res) => {
 
       <script>
         const logDiv = document.getElementById('logs');
+        const gridDiv = document.getElementById('led-grid');
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(protocol + '//' + window.location.host);
+
+        // Tải danh sách phòng động từ API /config
+        fetch('/config')
+          .then(res => res.json())
+          .then(data => {
+            if (data.project_info && data.project_info.name) {
+              document.getElementById('project-title').innerText = '🏛️ ' + data.project_info.name;
+            }
+            if (data.d && Array.isArray(data.d)) {
+              gridDiv.innerHTML = '';
+              data.d.forEach(row => {
+                const roomName = row[2];
+                const rType = row[3];
+                const hwIdx = row[4];
+                
+                let icon = '🏠';
+                if (rType === 100) icon = '🏬';
+                else if (rType >= 200 && rType < 300) icon = '💅';
+                else if (rType === 5) icon = '🏰';
+                else if (rType === 6) icon = '🏢';
+
+                const card = document.createElement('div');
+                card.id = 'card-' + hwIdx;
+                card.className = 'led-card';
+                card.innerHTML = \`<div class="led-icon">\${icon}</div><div class="led-label">\${roomName} (\${hwIdx})</div>\`;
+                gridDiv.appendChild(card);
+              });
+            }
+          })
+          .catch(e => console.error('Lỗi nạp config:', e));
 
         ws.onmessage = (event) => {
           const dataStr = event.data;
