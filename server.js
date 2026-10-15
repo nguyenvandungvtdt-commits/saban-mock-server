@@ -8,7 +8,36 @@ const port = process.env.PORT || 3000;
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Trang Web Dashboard mô phỏng trạng thái Sa bàn
+// 🟢 THÊM API TRẢ VỀ CONFIG JSON CHO APP FLUTTER
+app.get('/config', (req, res) => {
+  res.json({
+    "assets": {
+      "background": "assets/images/background.png"
+    },
+    "buildings": [
+      {
+        "id": "sa_ban",
+        "name": "TỔNG SA BÀN",
+        "floors": [
+          {
+            "id": "tien_ich",
+            "name": "THƯƠNG MẠI VÀ TIỆN ÍCH",
+            "rooms": [
+              { "id": 100, "name": "SHOPHOUSE", "hardwareIndex": 100 },
+              { "id": 201, "name": "BEAUTYSALON", "hardwareIndex": 201 },
+              { "id": 202, "name": "GYM-SHCĐ", "hardwareIndex": 202 },
+              { "id": 203, "name": "GAME", "hardwareIndex": 203 },
+              { "id": 204, "name": "MEETING", "hardwareIndex": 204 },
+              { "id": 205, "name": "CO-WORKING", "hardwareIndex": 205 },
+              { "id": 206, "name": "YOGA", "hardwareIndex": 206 }
+            ]
+          }
+        ]
+      }
+    ]
+  });
+});
+
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -69,7 +98,6 @@ app.get('/', (req, res) => {
         ws.onmessage = (event) => {
           const dataStr = event.data;
           
-          // Ghi Log tin nhắn nhận từ Flutter
           const item = document.createElement('div');
           item.className = 'log-item';
           item.innerText = \`[\${new Date().toLocaleTimeString()}] RECV: \${dataStr}\`;
@@ -78,26 +106,25 @@ app.get('/', (req, res) => {
 
           try {
             const data = JSON.parse(dataStr);
-            
-            // Xử lý bật/tắt danh sách LEDs hoặc LED đơn lẻ
-            if (Array.isArray(data.leds)) {
-              data.leds.forEach(id => updateLed(id, data.state ?? data.status === 'ON'));
-            } else if (data.hardwareIndex || data.led) {
-              const id = data.hardwareIndex || data.led;
-              updateLed(id, data.state ?? data.status === 'ON');
-            } else if (data.command === 'TOGGLE_ALL') {
+            const ids = data.leds || data.pins || (data.hardwareIndex !== undefined ? [data.hardwareIndex] : []) || (data.led !== undefined ? [data.led] : []);
+            const state = data.state ?? data.status === 'ON' ?? data.value === 1 ?? true;
+
+            if (ids.length > 0) {
+              ids.forEach(id => updateLed(id, state));
+            } else {
               document.querySelectorAll('.led-card').forEach(el => {
-                if (data.state) el.classList.add('active');
+                if (state) el.classList.add('active');
                 else el.classList.remove('active');
               });
             }
           } catch(e) {
-            // Trường hợp chuỗi thô
-            if (dataStr.includes("ON")) {
-              document.querySelectorAll('.led-card').forEach(el => el.classList.add('active'));
-            } else if (dataStr.includes("OFF")) {
-              document.querySelectorAll('.led-card').forEach(el => el.classList.remove('active'));
-            }
+            document.querySelectorAll('.led-card').forEach(el => {
+              const cardId = el.id.replace('card-', '');
+              if (dataStr.includes(cardId) || dataStr.includes('ON') || dataStr.includes('ALL')) {
+                if (dataStr.includes('OFF')) el.classList.remove('active');
+                else el.classList.add('active');
+              }
+            });
           }
         };
 
@@ -114,25 +141,18 @@ app.get('/', (req, res) => {
   `);
 });
 
-// Xử lý kết nối WebSocket từ App Flutter
 wss.on('connection', (ws) => {
-  console.log('App Reviewer đã kết nối!');
+  console.log('App connected!');
   ws.send(JSON.stringify({ status: "connected", device: "ESP32_MOCK_SERVER" }));
 
   ws.on('message', (message) => {
     const rawData = message.toString();
-    console.log('Received payload:', rawData);
-
-    // Broadcast tới Dashboard trình duyệt để đổi màu icon
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(rawData);
       }
     });
-
-    // Phản hồi OK về App Flutter
-    ws.send(JSON.stringify({ result: "OK", echo: rawData }));
   });
 });
 
-server.listen(port, () => console.log(`Server đang chạy trên port ${port}`));
+server.listen(port, () => console.log(`Server listening on port ${port}`));
