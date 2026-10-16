@@ -1,3 +1,4 @@
+<!-- Force Git Update - Fixed DOM Null Check, Responsive & Performance Optimized -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -11,27 +12,11 @@
     .status-badge { padding: 4px 12px; background: #166534; color: #4ade80; border-radius: 20px; font-weight: bold; font-size: 12px; }
 
     .app-controls { background: #1e293b; border-radius: 14px; padding: 15px; margin-bottom: 20px; border: 1px solid #0284c7; text-align: center; }
+    .ctrl-title { color: #38bdf8; font-size: 13px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
     .btn-group { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 12px; }
-    
-    /* Style cơ bản cho các nút bấm */
-    .btn-cmd { background: #ea580c; color: white; border: none; padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; opacity: 0.85; }
-    .btn-cmd:hover { transform: translateY(-1px); opacity: 1; }
-    
-    /* Trạng thái Active sáng nổi bật cho nút loại phòng */
-    .btn-cmd.active { opacity: 1 !important; background-color: #f59e0b !important; box-shadow: 0 0 12px #f59e0b !important; border: 1px solid #ffffff !important; }
-    
-    /* Nút Tổng Sa bàn */
-    .btn-master { background: #0284c7; font-size: 13px; padding: 8px 20px; border-radius: 20px; opacity: 1; }
-    .btn-master.active { background: #38bdf8 !important; box-shadow: 0 0 12px #38bdf8 !important; }
-
-    /* Nút Master Nhóm (TẤT CẢ CÁC PHÒNG / TIỆN ÍCH) */
-    .btn-group-master { background: #0284c7; color: #ffffff; font-size: 12px; font-weight: bold; padding: 8px 20px; border-radius: 10px; border: none; cursor: pointer; margin-bottom: 8px; transition: all 0.2s; }
-    .btn-group-master:hover { background: #0369a1; }
-    .btn-group-master.active { background: #fef08a !important; color: #854d0e !important; box-shadow: 0 0 12px #fef08a !important; }
-
-    /* Nút Tiện ích màu xanh */
-    .btn-utility { background: #059669; }
-    .btn-utility.active { background: #10b981 !important; box-shadow: 0 0 12px #10b981 !important; }
+    .btn-cmd { background: #f97316; color: white; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .btn-cmd:hover { background: #ea580c; transform: translateY(-1px); }
+    .btn-master { background: #0284c7; font-size: 13px; padding: 8px 20px; border-radius: 20px; }
 
     .buildings-flex { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 15px; width: 100%; box-sizing: border-box; }
     .building-col { flex: 1 1 0; min-width: 180px; background: #1e293b; border-radius: 12px; padding: 8px; border: 1px solid #334155; box-sizing: border-box; }
@@ -62,34 +47,26 @@
     </div>
 
     <div class="app-controls">
-      <!-- TỔNG SA BÀN -->
-      <button id="btn-master-all" class="btn-cmd btn-master" onclick="toggleMasterAll()">💡 TỔNG SA BÀN (BẬT)</button>
+      <button class="btn-cmd btn-master" onclick="sendCmd('ALL:1')">💡 TỔNG SA BÀN (BẬT)</button>
       <button class="btn-cmd btn-master" style="background:#ef4444;" onclick="sendCmd('ALL:0')">🔌 TẮT TẤT CẢ</button>
-      
-      <div style="height:14px;"></div>
-      
-      <!-- NHÓM 1: TẤT CẢ CÁC PHÒNG -->
-      <button id="btn-master-apartments" class="btn-group-master" onclick="toggleApartmentMaster()">🏠 TẤT CẢ CÁC PHÒNG</button>
+      <div style="height:10px;"></div>
+      <div class="ctrl-title">Tất Cả Các Phòng</div>
       <div class="btn-group">
-        <button id="btn-type-2" class="btn-cmd" onclick="toggleTypeCmd(2)">2PN</button>
-        <button id="btn-type-3" class="btn-cmd" onclick="toggleTypeCmd(3)">3PN</button>
-        <button id="btn-type-4" class="btn-cmd" onclick="toggleTypeCmd(4)">4PN</button>
-        <button id="btn-type-5" class="btn-cmd" onclick="toggleTypeCmd(5)">PENTHOUSE</button>
-        <button id="btn-type-6" class="btn-cmd" onclick="toggleTypeCmd(6)">DUPLEX</button>
+        <button class="btn-cmd" onclick="toggleTypeCmd(2)">2PN</button>
+        <button class="btn-cmd" onclick="toggleTypeCmd(3)">3PN</button>
+        <button class="btn-cmd" onclick="toggleTypeCmd(4)">4PN</button>
+        <button class="btn-cmd" onclick="toggleTypeCmd(5)">PENTHOUSE</button>
+        <button class="btn-cmd" onclick="toggleTypeCmd(6)">DUPLEX</button>
       </div>
-      
-      <div style="height:8px;"></div>
-
-      <!-- NHÓM 2: THƯƠNG MẠI VÀ TIỆN ÍCH -->
-      <button id="btn-master-utilities" class="btn-group-master" style="background:#059669;" onclick="toggleUtilityMaster()">🏬 THƯƠNG MẠI VÀ TIỆN ÍCH</button>
+      <div class="ctrl-title">Thương Mại Và Tiện Ích</div>
       <div class="btn-group">
-        <button id="btn-type-100" class="btn-cmd btn-utility" onclick="toggleTypeCmd(100)">SHOPHOUSE</button>
-        <button id="btn-type-201" class="btn-cmd btn-utility" onclick="toggleTypeCmd(201)">BEAUTYSALON</button>
-        <button id="btn-type-202" class="btn-cmd btn-utility" onclick="toggleTypeCmd(202)">GYM-SHCĐ</button>
-        <button id="btn-type-203" class="btn-cmd btn-utility" onclick="toggleTypeCmd(203)">GAME</button>
-        <button id="btn-type-204" class="btn-cmd btn-utility" onclick="toggleTypeCmd(204)">MEETING</button>
-        <button id="btn-type-205" class="btn-cmd btn-utility" onclick="toggleTypeCmd(205)">CO-WORKING</button>
-        <button id="btn-type-206" class="btn-cmd btn-utility" onclick="toggleTypeCmd(206)">YOGA</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(100)">SHOPHOUSE</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(201)">BEAUTYSALON</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(202)">GYM-SHCĐ</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(203)">GAME</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(204)">MEETING</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(205)">CO-WORKING</button>
+        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(206)">YOGA</button>
       </div>
     </div>
 
@@ -104,10 +81,7 @@
   <script>
     let ws = null;
     const typeStates = {};
-    let isMasterAllOn = false;
-    let isApartmentMasterOn = false;
-    let isUtilityMasterOn = false;
-    const MAX_LOGS = 30;
+    const MAX_LOGS = 30; // Giới hạn tối đa 30 dòng log để tránh lag DOM
 
     function sendCmd(cmd) {
       if (ws && ws.readyState === WebSocket.OPEN) {
@@ -115,65 +89,9 @@
       }
     }
 
-    function toggleMasterAll() {
-      isMasterAllOn = !isMasterAllOn;
-      sendCmd('ALL:' + (isMasterAllOn ? 1 : 0));
-    }
-
-    function toggleApartmentMaster() {
-      isApartmentMasterOn = !isApartmentMasterOn;
-      const types = [2, 3, 4, 5, 6];
-      types.forEach(t => {
-        typeStates[t] = isApartmentMasterOn;
-        sendCmd('TYPE:' + t + ':' + (isApartmentMasterOn ? 1 : 0));
-      });
-      updateButtonStates();
-    }
-
-    function toggleUtilityMaster() {
-      isUtilityMasterOn = !isUtilityMasterOn;
-      const types = [100, 201, 202, 203, 204, 205, 206];
-      types.forEach(t => {
-        typeStates[t] = isUtilityMasterOn;
-        sendCmd('TYPE:' + t + ':' + (isUtilityMasterOn ? 1 : 0));
-      });
-      updateButtonStates();
-    }
-
     function toggleTypeCmd(typeInt) {
       typeStates[typeInt] = !typeStates[typeInt];
       sendCmd('TYPE:' + typeInt + ':' + (typeStates[typeInt] ? 1 : 0));
-      updateButtonStates();
-    }
-
-    // 🟢 HÀM QUAN TRỌNG: ĐỔI MÀU / ACTIVE CÁC NÚT BẤM
-    function updateButtonStates() {
-      // 1. Cập nhật trạng thái từng nút đơn lẻ
-      Object.keys(typeStates).forEach(t => {
-        const btn = document.getElementById('btn-type-' + t);
-        if (btn) {
-          if (typeStates[t]) btn.classList.add('active');
-          else btn.classList.remove('active');
-        }
-      });
-
-      // 2. Cập nhật nút Master Tất Cả Căn hộ
-      const aptTypes = [2, 3, 4, 5, 6];
-      const allAptOn = aptTypes.every(t => typeStates[t] === true);
-      const aptMasterBtn = document.getElementById('btn-master-apartments');
-      if (aptMasterBtn) {
-        if (allAptOn) aptMasterBtn.classList.add('active');
-        else aptMasterBtn.classList.remove('active');
-      }
-
-      // 3. Cập nhật nút Master Tiện ích
-      const utilTypes = [100, 201, 202, 203, 204, 205, 206];
-      const allUtilOn = utilTypes.every(t => typeStates[t] === true);
-      const utilMasterBtn = document.getElementById('btn-master-utilities');
-      if (utilMasterBtn) {
-        if (allUtilOn) utilMasterBtn.classList.add('active');
-        else utilMasterBtn.classList.remove('active');
-      }
     }
 
     function parseBuildingName(rawStr) {
@@ -210,10 +128,15 @@
           }
           if (data && Array.isArray(data.d)) {
             renderBuildingLayout(data.d);
+          } else if (container) {
+            container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi: Không tìm thấy mảng dữ liệu d</div>';
           }
         })
         .catch(function(err) {
           console.error('Lỗi fetch /config:', err);
+          if (container) {
+            container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi kết nối API config</div>';
+          }
         });
 
       function renderBuildingLayout(rows) {
@@ -317,33 +240,30 @@
         }
       }
 
-      // 🟢 XỬ LÝ ĐỒNG BỘ NÚT BẤM KHI NHẬN TỪ WEBSOCKET
       ws.onmessage = function(event) {
         const dataStr = event.data.toString().trim();
 
+        // GIỚI HẠN DÒNG LOG ĐỂ TRÁNH LAG TRÌNH DUYỆT
         if (logDiv) {
           const item = document.createElement('div');
           item.className = 'log-item';
           item.innerText = '[' + new Date().toLocaleTimeString() + '] ' + dataStr;
           logDiv.appendChild(item);
-          while (logDiv.children.length > MAX_LOGS) logDiv.removeChild(logDiv.firstChild);
+          
+          while (logDiv.children.length > MAX_LOGS) {
+            logDiv.removeChild(logDiv.firstChild);
+          }
           logDiv.scrollTop = logDiv.scrollHeight;
         }
 
-        // Lệnh đồng bộ theo Type (VD: "TYPE:2:1")
         if (dataStr.startsWith('TYPE:')) {
           const parts = dataStr.split(':');
-          const targetType = parseInt(parts[1]);
+          const targetType = String(parts[1]).trim();
           const isOn = parts[2] === '1';
 
-          // Cập nhật mảng trạng thái nút và vẽ lại màu nút
-          typeStates[targetType] = isOn;
-          updateButtonStates();
-
-          // Cập nhật các ô đèn LED sa bàn
           const cards = document.querySelectorAll('.led-card');
           for (let i = 0; i < cards.length; i++) {
-            if (parseInt(cards[i].getAttribute('data-type')) === targetType) {
+            if (String(cards[i].getAttribute('data-type')).trim() === targetType) {
               if (isOn) cards[i].classList.add('active');
               else cards[i].classList.remove('active');
             }
@@ -351,14 +271,13 @@
           return;
         }
 
-        // Lệnh ALL:1 hoặc ALL:0
         if (dataStr.startsWith('ALL:')) {
           const parts = dataStr.split(':');
           const isOn = parts[1] === '1';
           const cards = document.querySelectorAll('.led-card');
 
           if (parts.length >= 3 && parts[2].trim().length > 0) {
-            const targetIds = new Set(parts[2].split(',').map(id => id.trim()));
+            const targetIds = new Set(parts[2].split(',').map(function(id) { return id.trim(); }));
             for (let i = 0; i < cards.length; i++) {
               if (targetIds.has(String(cards[i].getAttribute('data-hw')))) {
                 if (isOn) cards[i].classList.add('active');
@@ -366,22 +285,14 @@
               }
             }
           } else {
-            // Bật/Tắt tất cả các ô LED
             for (let i = 0; i < cards.length; i++) {
               if (isOn) cards[i].classList.add('active');
               else cards[i].classList.remove('active');
             }
-            
-            // 🟢 ĐỒNG BỘ ĐỔI MÀU TẤT CẢ CÁC NÚT BẤM
-            [2, 3, 4, 5, 6, 100, 201, 202, 203, 204, 205, 206].forEach(t => {
-              typeStates[t] = isOn;
-            });
-            updateButtonStates();
           }
           return;
         }
 
-        // Lệnh đổi 1 đèn đơn lẻ
         if (dataStr.includes(':')) {
           const parts = dataStr.split(':');
           const hwIndex = parts[0].trim();
