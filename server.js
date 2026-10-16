@@ -101,14 +101,36 @@ app.get('/', (req, res) => {
 });
 
 // 🟢 3. WEBSOCKET SERVER RELAY LỆNH MỚI CHUẨN ĐỊNH DẠNG
+// wss.on('connection', function(ws) {
+//   console.log('🟢 [SERVER] Client mới kết nối WebSocket');
+//   ws.send(JSON.stringify({ status: "connected", device: "ESP32_MOCK_SERVER" }));
+
+//   ws.on('message', function(message) {
+//     const rawData = message.toString().trim();
+//     console.log("📩 [SERVER RECEIVED]:", rawData);
+
+//     wss.clients.forEach(function(client) {
+//       if (client.readyState === WebSocket.OPEN) {
+//         client.send(rawData);
+//       }
+//     });
+//   });
+// });
+// 🟢 3. WEBSOCKET SERVER RELAY LỆNH MỚI CHUẨN ĐỊNH DẠNG
 wss.on('connection', function(ws) {
   console.log('🟢 [SERVER] Client mới kết nối WebSocket');
-  ws.send(JSON.stringify({ status: "connected", device: "ESP32_MOCK_SERVER" }));
 
   ws.on('message', function(message) {
     const rawData = message.toString().trim();
-    console.log("📩 [SERVER RECEIVED]:", rawData);
+    
+    // Bỏ qua gói tin Ping giữ heartbeat từ Client để tránh tốn băng thông Relay
+    if (rawData === 'PING' || rawData.includes('"type":"ping"')) {
+      return;
+    }
 
+    console.log("📩 [SERVER RELAY]:", rawData);
+
+    // Broadcast lệnh tới TẤT CẢ các Client (Web + Flutter App + ESP32)
     wss.clients.forEach(function(client) {
       if (client.readyState === WebSocket.OPEN) {
         client.send(rawData);
