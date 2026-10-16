@@ -1,306 +1,345 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sa Bàn Demo - Live Control Dashboard</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 15px; background: #0f172a; color: #f8fafc; margin: 0; }
-    .container { max-width: 100%; padding: 0 10px; margin: 0 auto; box-sizing: border-box; }
-    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 15px; }
-    .status-badge { padding: 4px 12px; background: #166534; color: #4ade80; border-radius: 20px; font-weight: bold; font-size: 12px; }
-
-    .app-controls { background: #1e293b; border-radius: 14px; padding: 15px; margin-bottom: 20px; border: 1px solid #0284c7; text-align: center; }
-    .ctrl-title { color: #38bdf8; font-size: 13px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .btn-group { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 12px; }
-    .btn-cmd { background: #f97316; color: white; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-    .btn-cmd:hover { background: #ea580c; transform: translateY(-1px); }
-    .btn-master { background: #0284c7; font-size: 13px; padding: 8px 20px; border-radius: 20px; }
-
-    .buildings-flex { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 15px; width: 100%; box-sizing: border-box; }
-    .building-col { flex: 1 1 0; min-width: 180px; background: #1e293b; border-radius: 12px; padding: 8px; border: 1px solid #334155; box-sizing: border-box; }
-    .building-header { text-align: center; font-weight: bold; color: #fef08a; padding-bottom: 8px; border-bottom: 1px solid #334155; margin-bottom: 10px; font-size: 14px; }
-    
-    .floors-stack { display: flex; flex-direction: column-reverse; gap: 6px; }
-    .floor-row { background: #0f172a; border-radius: 6px; padding: 6px; border: 1px solid #1e293b; }
-    .floor-name { font-size: 10px; color: #64748b; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
-    
-    .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(55px, 1fr)); gap: 4px; }
-    
-    .led-card { background: #1e293b; border-radius: 6px; padding: 5px 2px; text-align: center; border: 1px solid #334155; transition: background 0.15s, border-color 0.15s; cursor: pointer; }
-    .led-icon { font-size: 14px; filter: grayscale(100%) opacity(0.3); }
-    .led-card.active { border-color: #f59e0b; background: #431407; box-shadow: 0 0 8px #f59e0b; }
-    .led-card.active .led-icon { filter: grayscale(0%) opacity(1); }
-    .led-label { font-size: 8px; font-weight: bold; color: #94a3b8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .led-card.active .led-label { color: #fef08a; }
-
-    #logs { background: #020617; border: 1px solid #1e293b; height: 100px; overflow-y: auto; padding: 10px; font-family: monospace; border-radius: 8px; font-size: 11px; color: #38bdf8; }
-    .log-item { margin-bottom: 3px; }
-  </style>
+  <!-- 🟢 Các thẻ META bắt buộc phải nằm đầu phần <head> -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sa Bàn Demo - Live Control Dashboard</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h3 id="project-title" style="margin:0;">🏛️ Sa Bàn Tòa Nhà (Real-time Demo)</h3>
-      <span class="status-badge">● KẾT NỐI SẴN SÀNG</span>
-    </div>
+  <div class="container">
+    <div class="header">
+      <h3 id="project-title" class="header-title">🏛️ Sa Bàn Tòa Nhà (Real-time Demo)</h3>
+      <span class="status-badge">● KẾT NỐI SẴN SÀNG</span>
+    </div>
 
-    <div class="app-controls">
-      <button class="btn-cmd btn-master" onclick="sendCmd('ALL:1')">💡 TỔNG SA BÀN (BẬT)</button>
-      <button class="btn-cmd btn-master" style="background:#ef4444;" onclick="sendCmd('ALL:0')">🔌 TẮT TẤT CẢ</button>
-      <div style="height:10px;"></div>
-      <div class="ctrl-title">Tất Cả Các Phòng</div>
-      <div class="btn-group">
-        <button class="btn-cmd" onclick="toggleTypeCmd(2)">2PN</button>
-        <button class="btn-cmd" onclick="toggleTypeCmd(3)">3PN</button>
-        <button class="btn-cmd" onclick="toggleTypeCmd(4)">4PN</button>
-        <button class="btn-cmd" onclick="toggleTypeCmd(5)">PENTHOUSE</button>
-        <button class="btn-cmd" onclick="toggleTypeCmd(6)">DUPLEX</button>
-      </div>
-      <div class="ctrl-title">Thương Mại Và Tiện Ích</div>
-      <div class="btn-group">
-        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(100)">SHOPHOUSE</button>
-        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(201)">BEAUTYSALON</button>
-        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(202)">GYM-SHCĐ</button>
-        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(203)">GAME</button>
-        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(204)">MEETING</button>
-        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(205)">CO-WORKING</button>
-        <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(206)">YOGA</button>
-      </div>
-    </div>
+    <div class="app-controls">
+      <!-- TỔNG SA BÀN -->
+      <button id="btn-master-all" class="btn-cmd btn-master" onclick="toggleMasterAll()">💡 TỔNG SA BÀN (BẬT)</button>
+      <button class="btn-cmd btn-master btn-master-off" onclick="sendCmd('ALL:0')">🔌 TẮT TẤT CẢ</button>
+      
+      <div class="spacer-large"></div>
+      
+      <!-- NHÓM 1: TẤT CẢ CÁC PHÒNG -->
+      <button id="btn-master-apartments" class="btn-group-master" onclick="toggleApartmentMaster()">🏠 TẤT CẢ CÁC PHÒNG</button>
+      <div class="btn-group">
+        <button id="btn-type-2" class="btn-cmd" onclick="toggleTypeCmd(2)">2PN</button>
+        <button id="btn-type-3" class="btn-cmd" onclick="toggleTypeCmd(3)">3PN</button>
+        <button id="btn-type-4" class="btn-cmd" onclick="toggleTypeCmd(4)">4PN</button>
+        <button id="btn-type-5" class="btn-cmd" onclick="toggleTypeCmd(5)">PENTHOUSE</button>
+        <button id="btn-type-6" class="btn-cmd" onclick="toggleTypeCmd(6)">DUPLEX</button>
+      </div>
+      
+      <div class="spacer-small"></div>
 
-    <div id="buildings-container" class="buildings-flex">
-      <div style="text-align:center; width:100%; color:#94a3b8;">Đang nạp sơ đồ mặt bằng...</div>
-    </div>
+      <!-- NHÓM 2: THƯƠNG MẠI VÀ TIỆN ÍCH -->
+      <button id="btn-master-utilities" class="btn-group-master btn-utility-master" onclick="toggleUtilityMaster()">🏬 THƯƠNG MẠI VÀ TIỆN ÍCH</button>
+      <div class="btn-group">
+        <button id="btn-type-100" class="btn-cmd btn-utility" onclick="toggleTypeCmd(100)">SHOPHOUSE</button>
+        <button id="btn-type-201" class="btn-cmd btn-utility" onclick="toggleTypeCmd(201)">BEAUTYSALON</button>
+        <button id="btn-type-202" class="btn-cmd btn-utility" onclick="toggleTypeCmd(202)">GYM-SHCĐ</button>
+        <button id="btn-type-203" class="btn-cmd btn-utility" onclick="toggleTypeCmd(203)">GAME</button>
+        <button id="btn-type-204" class="btn-cmd btn-utility" onclick="toggleTypeCmd(204)">MEETING</button>
+        <button id="btn-type-205" class="btn-cmd btn-utility" onclick="toggleTypeCmd(205)">CO-WORKING</button>
+        <button id="btn-type-206" class="btn-cmd btn-utility" onclick="toggleTypeCmd(206)">YOGA</button>
+      </div>
+    </div>
 
-    <h4 style="margin: 15px 0 5px 0;">📝 Nhật Ký Lệnh Từ App / Web:</h4>
-    <div id="logs"></div>
-  </div>
+    <div id="buildings-container" class="buildings-flex">
+      <div class="status-msg-loading">Đang nạp sơ đồ mặt bằng...</div>
+    </div>
 
-  <script>
-    let ws = null;
-    const typeStates = {};
-    const MAX_LOGS = 30; // Giới hạn tối đa 30 dòng log để tránh lag DOM
+    <h4 class="logs-title">📝 Nhật Ký Lệnh Từ App / Web:</h4>
+    <div id="logs"></div>
+  </div>
 
-    function sendCmd(cmd) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(cmd);
-      }
-    }
+  <script>
+    let ws = null;
+    const typeStates = {};
+    let isMasterAllOn = false;
+    let isApartmentMasterOn = false;
+    let isUtilityMasterOn = false;
+    const MAX_LOGS = 30;
 
-    function toggleTypeCmd(typeInt) {
-      typeStates[typeInt] = !typeStates[typeInt];
-      sendCmd('TYPE:' + typeInt + ':' + (typeStates[typeInt] ? 1 : 0));
-    }
+    function sendCmd(cmd) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(cmd);
+      }
+    }
 
-    function parseBuildingName(rawStr) {
-      if (!rawStr) return 'THÁP KHÁC';
-      const clean = rawStr.toString().trim().toUpperCase();
-      if (clean.includes('A')) return 'THÁP A';
-      if (clean.includes('B')) return 'THÁP B';
-      if (clean.includes('C')) return 'THÁP C';
-      if (clean.includes('D')) return 'THÁP D';
-      if (clean.includes('E')) return 'THÁP E';
-      return 'THÁP KHÁC';
-    }
+    function toggleMasterAll() {
+      isMasterAllOn = !isMasterAllOn;
+      sendCmd('ALL:' + (isMasterAllOn ? 1 : 0));
+    }
 
-    function parseFloorName(rawStr) {
-      if (!rawStr) return 'TẦNG KHÁC';
-      const str = rawStr.toString().trim();
-      const numMatch = str.match(/\d+/);
-      return numMatch ? ('TẦNG ' + numMatch[0]) : str.toUpperCase();
-    }
+    function toggleApartmentMaster() {
+      isApartmentMasterOn = !isApartmentMasterOn;
+      const types = [2, 3, 4, 5, 6];
+      types.forEach(t => {
+        typeStates[t] = isApartmentMasterOn;
+        sendCmd('TYPE:' + t + ':' + (isApartmentMasterOn ? 1 : 0));
+      });
+      updateButtonStates();
+    }
 
-    document.addEventListener('DOMContentLoaded', function() {
-      const logDiv = document.getElementById('logs');
-      const container = document.getElementById('buildings-container');
-      const projectTitle = document.getElementById('project-title');
+    function toggleUtilityMaster() {
+      isUtilityMasterOn = !isUtilityMasterOn;
+      const types = [100, 201, 202, 203, 204, 205, 206];
+      types.forEach(t => {
+        typeStates[t] = isUtilityMasterOn;
+        sendCmd('TYPE:' + t + ':' + (isUtilityMasterOn ? 1 : 0));
+      });
+      updateButtonStates();
+    }
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      ws = new WebSocket(protocol + '//' + window.location.host);
+    function toggleTypeCmd(typeInt) {
+      typeStates[typeInt] = !typeStates[typeInt];
+      sendCmd('TYPE:' + typeInt + ':' + (typeStates[typeInt] ? 1 : 0));
+      updateButtonStates();
+    }
 
-      fetch('/config?t=' + Date.now())
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          if (data && data.project_info && data.project_info.name && projectTitle) {
-            projectTitle.innerText = '🏛️ ' + data.project_info.name;
-          }
-          if (data && Array.isArray(data.d)) {
-            renderBuildingLayout(data.d);
-          } else if (container) {
-            container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi: Không tìm thấy mảng dữ liệu d</div>';
-          }
-        })
-        .catch(function(err) {
-          console.error('Lỗi fetch /config:', err);
-          if (container) {
-            container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi kết nối API config</div>';
-          }
-        });
+    function updateButtonStates() {
+      Object.keys(typeStates).forEach(t => {
+        const btn = document.getElementById('btn-type-' + t);
+        if (btn) {
+          if (typeStates[t]) btn.classList.add('active');
+          else btn.classList.remove('active');
+        }
+      });
 
-      function renderBuildingLayout(rows) {
-        if (!container) return;
-        const bMap = {};
-        
-        rows.forEach(function(r) {
-          const b = parseBuildingName(r[0]);
-          const f = parseFloorName(r[1]);
-          const room = r[2] ? r[2].toString().trim() : '';
-          const type = parseInt(r[3]);
-          const hw = r[4];
+      const aptTypes = [2, 3, 4, 5, 6];
+      const allAptOn = aptTypes.every(t => typeStates[t] === true);
+      const aptMasterBtn = document.getElementById('btn-master-apartments');
+      if (aptMasterBtn) {
+        if (allAptOn) aptMasterBtn.classList.add('active');
+        else aptMasterBtn.classList.remove('active');
+      }
 
-          if (!bMap[b]) bMap[b] = {};
-          if (!bMap[b][f]) bMap[b][f] = [];
-          bMap[b][f].push({ room: room, type: type, hw: hw });
-        });
+      const utilTypes = [100, 201, 202, 203, 204, 205, 206];
+      const allUtilOn = utilTypes.every(t => typeStates[t] === true);
+      const utilMasterBtn = document.getElementById('btn-master-utilities');
+      if (utilMasterBtn) {
+        if (allUtilOn) utilMasterBtn.classList.add('active');
+        else utilMasterBtn.classList.remove('active');
+      }
+    }
 
-        container.innerHTML = '';
-        
-        const buildingOrder = ['THÁP A', 'THÁP B', 'THÁP C', 'THÁP D', 'THÁP E', 'THÁP KHÁC'];
-        const sortedBuildings = Object.keys(bMap).sort(function(a, b) {
-          return buildingOrder.indexOf(a) - buildingOrder.indexOf(b);
-        });
+    function parseBuildingName(rawStr) {
+      if (!rawStr) return 'THÁP KHÁC';
+      const clean = rawStr.toString().trim().toUpperCase();
+      if (clean.includes('A')) return 'THÁP A';
+      if (clean.includes('B')) return 'THÁP B';
+      if (clean.includes('C')) return 'THÁP C';
+      if (clean.includes('D')) return 'THÁP D';
+      if (clean.includes('E')) return 'THÁP E';
+      return 'THÁP KHÁC';
+    }
 
-        sortedBuildings.forEach(function(bName) {
-          const col = document.createElement('div');
-          col.className = 'building-col';
-          
-          const bHeader = document.createElement('div');
-          bHeader.className = 'building-header';
-          bHeader.innerText = bName;
-          col.appendChild(bHeader);
+    function parseFloorName(rawStr) {
+      if (!rawStr) return 'TẦNG KHÁC';
+      const str = rawStr.toString().trim();
+      const numMatch = str.match(/\d+/);
+      return numMatch ? ('TẦNG ' + numMatch[0]) : str.toUpperCase();
+    }
 
-          const floorsStack = document.createElement('div');
-          floorsStack.className = 'floors-stack';
+    document.addEventListener('DOMContentLoaded', function() {
+      const logDiv = document.getElementById('logs');
+      const container = document.getElementById('buildings-container');
+      const projectTitle = document.getElementById('project-title');
 
-          const sortedFloors = Object.keys(bMap[bName]).sort(function(a, b) {
-            const numA = parseInt(a.replace(/\D/g, '')) || 0;
-            const numB = parseInt(b.replace(/\D/g, '')) || 0;
-            return numA - numB;
-          });
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(protocol + '//' + window.location.host);
 
-          sortedFloors.forEach(function(fName) {
-            const floorRow = document.createElement('div');
-            floorRow.className = 'floor-row';
+      fetch('/config?t=' + Date.now())
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data && data.project_info && data.project_info.name && projectTitle) {
+            projectTitle.innerText = '🏛️ ' + data.project_info.name;
+          }
+          if (data && Array.isArray(data.d)) {
+            renderBuildingLayout(data.d);
+          } else if (container) {
+            container.innerHTML = '<div class="status-msg-error">Lỗi: Không tìm thấy mảng dữ liệu d</div>';
+          }
+        })
+        .catch(function(err) {
+          console.error('Lỗi fetch /config:', err);
+          if (container) {
+            container.innerHTML = '<div class="status-msg-error">Lỗi kết nối API config</div>';
+          }
+        });
 
-            const floorTitle = document.createElement('div');
-            floorTitle.className = 'floor-name';
-            floorTitle.innerText = fName;
-            floorRow.appendChild(floorTitle);
+      function renderBuildingLayout(rows) {
+        if (!container) return;
+        const bMap = {};
+        
+        rows.forEach(function(r) {
+          const b = parseBuildingName(r[0]);
+          const f = parseFloorName(r[1]);
+          const room = r[2] ? r[2].toString().trim() : '';
+          const type = parseInt(r[3]);
+          const hw = r[4];
 
-            const roomsGrid = document.createElement('div');
-            roomsGrid.className = 'rooms-grid';
+          if (!bMap[b]) bMap[b] = {};
+          if (!bMap[b][f]) bMap[b][f] = [];
+          bMap[b][f].push({ room: room, type: type, hw: hw });
+        });
 
-            bMap[bName][fName].forEach(function(rm) {
-              let iconText = '🏠';
-              if (rm.type === 100 || (rm.type >= 200 && rm.type < 300)) iconText = '🏬';
-              else if (rm.type === 5) iconText = '🏰';
-              else if (rm.type === 6) iconText = '🏢';
+        container.innerHTML = '';
+        
+        const buildingOrder = ['THÁP A', 'THÁP B', 'THÁP C', 'THÁP D', 'THÁP E', 'THÁP KHÁC'];
+        const sortedBuildings = Object.keys(bMap).sort(function(a, b) {
+          return buildingOrder.indexOf(a) - buildingOrder.indexOf(b);
+        });
 
-              const card = document.createElement('div');
-              card.id = 'card-' + rm.hw;
-              card.className = 'led-card';
-              card.setAttribute('data-hw', rm.hw);
-              card.setAttribute('data-type', rm.type);
-              
-              card.onclick = function() {
-                const isAct = card.classList.contains('active');
-                sendCmd(rm.hw + ':' + (isAct ? '0' : '1'));
-              };
+        sortedBuildings.forEach(function(bName) {
+          const col = document.createElement('div');
+          col.className = 'building-col';
+          
+          const bHeader = document.createElement('div');
+          bHeader.className = 'building-header';
+          bHeader.innerText = bName;
+          col.appendChild(bHeader);
 
-              const iconDiv = document.createElement('div');
-              iconDiv.className = 'led-icon';
-              iconDiv.innerText = iconText;
+          const floorsStack = document.createElement('div');
+          floorsStack.className = 'floors-stack';
 
-              const labelDiv = document.createElement('div');
-              labelDiv.className = 'led-label';
-              labelDiv.title = rm.room;
-              labelDiv.innerText = rm.room;
+          const sortedFloors = Object.keys(bMap[bName]).sort(function(a, b) {
+            const numA = parseInt(a.replace(/\D/g, '')) || 0;
+            const numB = parseInt(b.replace(/\D/g, '')) || 0;
+            return numA - numB;
+          });
 
-              card.appendChild(iconDiv);
-              card.appendChild(labelDiv);
-              roomsGrid.appendChild(card);
-            });
+          sortedFloors.forEach(function(fName) {
+            const floorRow = document.createElement('div');
+            floorRow.className = 'floor-row';
 
-            floorRow.appendChild(roomsGrid);
-            floorsStack.appendChild(floorRow);
-          });
+            const floorTitle = document.createElement('div');
+            floorTitle.className = 'floor-name';
+            floorTitle.innerText = fName;
+            floorRow.appendChild(floorTitle);
 
-          col.appendChild(floorsStack);
-          container.appendChild(col);
-        });
-      }
+            const roomsGrid = document.createElement('div');
+            roomsGrid.className = 'rooms-grid';
 
-      function updateLedCard(hwIndex, isOn) {
-        const card = document.getElementById('card-' + hwIndex);
-        if (card) {
-          if (isOn) card.classList.add('active');
-          else card.classList.remove('active');
-        }
-      }
+            bMap[bName][fName].forEach(function(rm) {
+              let iconText = '🏠';
+              if (rm.type === 100 || (rm.type >= 200 && rm.type < 300)) iconText = '🏬';
+              else if (rm.type === 5) iconText = '🏰';
+              else if (rm.type === 6) iconText = '🏢';
 
-      ws.onmessage = function(event) {
-        const dataStr = event.data.toString().trim();
+              const card = document.createElement('div');
+              card.id = 'card-' + rm.hw;
+              card.className = 'led-card';
+              card.setAttribute('data-hw', rm.hw);
+              card.setAttribute('data-type', rm.type);
+              
+              card.onclick = function() {
+                const isAct = card.classList.contains('active');
+                sendCmd(rm.hw + ':' + (isAct ? '0' : '1'));
+              };
 
-        // GIỚI HẠN DÒNG LOG ĐỂ TRÁNH LAG TRÌNH DUYỆT
-        if (logDiv) {
-          const item = document.createElement('div');
-          item.className = 'log-item';
-          item.innerText = '[' + new Date().toLocaleTimeString() + '] ' + dataStr;
-          logDiv.appendChild(item);
-          
-          while (logDiv.children.length > MAX_LOGS) {
-            logDiv.removeChild(logDiv.firstChild);
-          }
-          logDiv.scrollTop = logDiv.scrollHeight;
-        }
+              const iconDiv = document.createElement('div');
+              iconDiv.className = 'led-icon';
+              iconDiv.innerText = iconText;
 
-        if (dataStr.startsWith('TYPE:')) {
-          const parts = dataStr.split(':');
-          const targetType = String(parts[1]).trim();
-          const isOn = parts[2] === '1';
+              const labelDiv = document.createElement('div');
+              labelDiv.className = 'led-label';
+              labelDiv.title = rm.room;
+              labelDiv.innerText = rm.room;
 
-          const cards = document.querySelectorAll('.led-card');
-          for (let i = 0; i < cards.length; i++) {
-            if (String(cards[i].getAttribute('data-type')).trim() === targetType) {
-              if (isOn) cards[i].classList.add('active');
-              else cards[i].classList.remove('active');
-            }
-          }
-          return;
-        }
+              card.appendChild(iconDiv);
+              card.appendChild(labelDiv);
+              roomsGrid.appendChild(card);
+            });
 
-        if (dataStr.startsWith('ALL:')) {
-          const parts = dataStr.split(':');
-          const isOn = parts[1] === '1';
-          const cards = document.querySelectorAll('.led-card');
+            floorRow.appendChild(roomsGrid);
+            floorsStack.appendChild(floorRow);
+          });
 
-          if (parts.length >= 3 && parts[2].trim().length > 0) {
-            const targetIds = new Set(parts[2].split(',').map(function(id) { return id.trim(); }));
-            for (let i = 0; i < cards.length; i++) {
-              if (targetIds.has(String(cards[i].getAttribute('data-hw')))) {
-                if (isOn) cards[i].classList.add('active');
-                else cards[i].classList.remove('active');
-              }
-            }
-          } else {
-            for (let i = 0; i < cards.length; i++) {
-              if (isOn) cards[i].classList.add('active');
-              else cards[i].classList.remove('active');
-            }
-          }
-          return;
-        }
+          col.appendChild(floorsStack);
+          container.appendChild(col);
+        });
+      }
 
-        if (dataStr.includes(':')) {
-          const parts = dataStr.split(':');
-          const hwIndex = parts[0].trim();
-          const isOn = parts[1].trim() === '1';
-          updateLedCard(hwIndex, isOn);
-          return;
-        }
-      };
-    });
-  </script>
+      function updateLedCard(hwIndex, isOn) {
+        const card = document.getElementById('card-' + hwIndex);
+        if (card) {
+          if (isOn) card.classList.add('active');
+          else card.classList.remove('active');
+        }
+      }
+
+      ws.onmessage = function(event) {
+        const dataStr = event.data.toString().trim();
+
+        if (logDiv) {
+          const item = document.createElement('div');
+          item.className = 'log-item';
+          item.innerText = '[' + new Date().toLocaleTimeString() + '] ' + dataStr;
+          logDiv.appendChild(item);
+          
+          while (logDiv.children.length > MAX_LOGS) {
+            logDiv.removeChild(logDiv.firstChild);
+          }
+          logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        if (dataStr.startsWith('TYPE:')) {
+          const parts = dataStr.split(':');
+          const targetType = parseInt(parts[1]);
+          const isOn = parts[2] === '1';
+
+          typeStates[targetType] = isOn;
+          updateButtonStates();
+
+          const cards = document.querySelectorAll('.led-card');
+          for (let i = 0; i < cards.length; i++) {
+            if (parseInt(cards[i].getAttribute('data-type')) === targetType) {
+              if (isOn) cards[i].classList.add('active');
+              else cards[i].classList.remove('active');
+            }
+          }
+          return;
+        }
+
+        if (dataStr.startsWith('ALL:')) {
+          const parts = dataStr.split(':');
+          const isOn = parts[1] === '1';
+          const cards = document.querySelectorAll('.led-card');
+
+          if (parts.length >= 3 && parts[2].trim().length > 0) {
+            const targetIds = new Set(parts[2].split(',').map(function(id) { return id.trim(); }));
+            for (let i = 0; i < cards.length; i++) {
+              if (targetIds.has(String(cards[i].getAttribute('data-hw')))) {
+                if (isOn) cards[i].classList.add('active');
+                else cards[i].classList.remove('active');
+              }
+            }
+          } else {
+            for (let i = 0; i < cards.length; i++) {
+              if (isOn) cards[i].classList.add('active');
+              else cards[i].classList.remove('active');
+            }
+            
+            [2, 3, 4, 5, 6, 100, 201, 202, 203, 204, 205, 206].forEach(t => {
+              typeStates[t] = isOn;
+            });
+            updateButtonStates();
+          }
+          return;
+        }
+
+        if (dataStr.includes(':')) {
+          const parts = dataStr.split(':');
+          const hwIndex = parts[0].trim();
+          const isOn = parts[1].trim() === '1';
+          updateLedCard(hwIndex, isOn);
+          return;
+        }
+      };
+    });
+  </script>
 </body>
 </html>
