@@ -4,21 +4,69 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sa Bàn Demo - Live Control Dashboard</title>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 15px; background: #0f172a; color: #f8fafc; margin: 0; }
+    .container { max-width: 100%; padding: 0 10px; margin: 0 auto; box-sizing: border-box; }
+    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 15px; }
+    .status-badge { padding: 4px 12px; background: #166534; color: #4ade80; border-radius: 20px; font-weight: bold; font-size: 12px; }
+
+    .app-controls { background: #1e293b; border-radius: 14px; padding: 15px; margin-bottom: 20px; border: 1px solid #0284c7; text-align: center; }
+    .btn-group { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 12px; }
+    
+    /* Style nút bấm */
+    .btn-cmd { background: #f97316; color: white; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; opacity: 0.8; }
+    .btn-cmd:hover { transform: translateY(-1px); opacity: 1; }
+    
+    /* Trạng thái Active nổi bật khi bật */
+    .btn-cmd.active { opacity: 1 !important; background-color: #f59e0b !important; box-shadow: 0 0 12px #f59e0b !important; border: 1px solid #ffffff !important; }
+    
+    /* Nút Tổng Sa bàn */
+    .btn-master { background: #0284c7; font-size: 13px; padding: 8px 20px; border-radius: 20px; opacity: 1; }
+    .btn-master.active { background: #38bdf8 !important; box-shadow: 0 0 12px #38bdf8 !important; }
+
+    /* Nút Master Nhóm (TẤT CẢ CÁC PHÒNG / TIỆN ÍCH) */
+    .btn-group-master { background: #0284c7; color: #ffffff; font-size: 12px; font-weight: bold; padding: 8px 18px; border-radius: 10px; border: none; cursor: pointer; margin-bottom: 8px; transition: all 0.2s; }
+    .btn-group-master:hover { background: #0369a1; }
+    .btn-group-master.active { background: #fef08a !important; color: #854d0e !important; box-shadow: 0 0 12px #fef08a !important; }
+
+    /* Nút Tiện ích màu xanh */
+    .btn-utility { background: #059669; }
+    .btn-utility.active { background: #10b981 !important; box-shadow: 0 0 12px #10b981 !important; }
+
+    .buildings-flex { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 15px; width: 100%; box-sizing: border-box; }
+    .building-col { flex: 1 1 0; min-width: 180px; background: #1e293b; border-radius: 12px; padding: 8px; border: 1px solid #334155; box-sizing: border-box; }
+    .building-header { text-align: center; font-weight: bold; color: #fef08a; padding-bottom: 8px; border-bottom: 1px solid #334155; margin-bottom: 10px; font-size: 14px; }
+    
+    .floors-stack { display: flex; flex-direction: column-reverse; gap: 6px; }
+    .floor-row { background: #0f172a; border-radius: 6px; padding: 6px; border: 1px solid #1e293b; }
+    .floor-name { font-size: 10px; color: #64748b; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
+    
+    .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(55px, 1fr)); gap: 4px; }
+    
+    .led-card { background: #1e293b; border-radius: 6px; padding: 5px 2px; text-align: center; border: 1px solid #334155; transition: background 0.15s, border-color 0.15s; cursor: pointer; }
+    .led-icon { font-size: 14px; filter: grayscale(100%) opacity(0.3); }
+    .led-card.active { border-color: #f59e0b; background: #431407; box-shadow: 0 0 8px #f59e0b; }
+    .led-card.active .led-icon { filter: grayscale(0%) opacity(1); }
+    .led-label { font-size: 8px; font-weight: bold; color: #94a3b8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .led-card.active .led-label { color: #fef08a; }
+
+    #logs { background: #020617; border: 1px solid #1e293b; height: 100px; overflow-y: auto; padding: 10px; font-family: monospace; border-radius: 8px; font-size: 11px; color: #38bdf8; }
+    .log-item { margin-bottom: 3px; }
+  </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h3 id="project-title" class="header-title">🏛️ Sa Bàn Tòa Nhà (Real-time Demo)</h3>
+      <h3 id="project-title" style="margin:0;">🏛️ Sa Bàn Tòa Nhà (Real-time Demo)</h3>
       <span class="status-badge">● KẾT NỐI SẴN SÀNG</span>
     </div>
 
     <div class="app-controls">
       <!-- TỔNG SA BÀN -->
       <button id="btn-master-all" class="btn-cmd btn-master" onclick="toggleMasterAll()">💡 TỔNG SA BÀN (BẬT)</button>
-      <button class="btn-cmd btn-master btn-master-off" onclick="sendCmd('ALL:0')">🔌 TẮT TẤT CẢ</button>
+      <button class="btn-cmd btn-master" style="background:#ef4444;" onclick="sendCmd('ALL:0')">🔌 TẮT TẤT CẢ</button>
       
-      <div class="spacer-large"></div>
+      <div style="height:14px;"></div>
       
       <!-- NHÓM 1: TẤT CẢ CÁC PHÒNG -->
       <button id="btn-master-apartments" class="btn-group-master" onclick="toggleApartmentMaster()">🏠 TẤT CẢ CÁC PHÒNG</button>
@@ -30,10 +78,10 @@
         <button id="btn-type-6" class="btn-cmd" onclick="toggleTypeCmd(6)">DUPLEX</button>
       </div>
       
-      <div class="spacer-small"></div>
+      <div style="height:8px;"></div>
 
       <!-- NHÓM 2: THƯƠNG MẠI VÀ TIỆN ÍCH -->
-      <button id="btn-master-utilities" class="btn-group-master btn-utility-master" onclick="toggleUtilityMaster()">🏬 THƯƠNG MẠI VÀ TIỆN ÍCH</button>
+      <button id="btn-master-utilities" class="btn-group-master" style="background:#059669;" onclick="toggleUtilityMaster()">🏬 THƯƠNG MẠI VÀ TIỆN ÍCH</button>
       <div class="btn-group">
         <button id="btn-type-100" class="btn-cmd btn-utility" onclick="toggleTypeCmd(100)">SHOPHOUSE</button>
         <button id="btn-type-201" class="btn-cmd btn-utility" onclick="toggleTypeCmd(201)">BEAUTYSALON</button>
@@ -46,14 +94,15 @@
     </div>
 
     <div id="buildings-container" class="buildings-flex">
-      <div class="status-msg-loading">Đang nạp sơ đồ mặt bằng...</div>
+      <div style="text-align:center; width:100%; color:#94a3b8;">Đang nạp sơ đồ mặt bằng...</div>
     </div>
 
-    <h4 class="logs-title">📝 Nhật Ký Lệnh Từ App / Web:</h4>
+    <h4 style="margin: 15px 0 5px 0;">📝 Nhật Ký Lệnh Từ App / Web:</h4>
     <div id="logs"></div>
   </div>
 
   <script>
+    // 🟢 Duy nhất 1 lần khai báo biến toàn cục ở đầu script
     let ws = null;
     const typeStates = {};
     let isMasterAllOn = false;
@@ -148,6 +197,8 @@
       const projectTitle = document.getElementById('project-title');
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      
+      // 🟢 Chỉ gán giá trị cho biến ws đã khai báo ở trên, KHÔNG dùng 'let ws' ở đây nữa
       ws = new WebSocket(protocol + '//' + window.location.host);
 
       fetch('/config?t=' + Date.now())
@@ -159,13 +210,13 @@
           if (data && Array.isArray(data.d)) {
             renderBuildingLayout(data.d);
           } else if (container) {
-            container.innerHTML = '<div class="status-msg-error">Lỗi: Không tìm thấy mảng dữ liệu d</div>';
+            container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi: Không tìm thấy mảng dữ liệu d</div>';
           }
         })
         .catch(function(err) {
           console.error('Lỗi fetch /config:', err);
           if (container) {
-            container.innerHTML = '<div class="status-msg-error">Lỗi kết nối API config</div>';
+            container.innerHTML = '<div style="color:#ef4444;text-align:center;width:100%;">Lỗi kết nối API config</div>';
           }
         });
 
