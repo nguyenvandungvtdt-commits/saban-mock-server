@@ -66,3 +66,5 @@ wss.on('connection', function(ws) {
 server.listen(port, function() {
   console.log('Server running on port ' + port);
 });
+//  <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(205)">CO-WORKING</button>
+//         <button class="btn-cmd" style="background:#059669;" onclick="toggleTypeCmd(206)">YOGA</button>
