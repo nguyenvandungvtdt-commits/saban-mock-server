@@ -238,67 +238,117 @@
         }
       }
 
-      ws.onmessage = function(event) {
-        const dataStr = event.data.toString().trim();
+ws.onmessage = function(event) {
+  const dataStr = event.data.toString().trim();
 
-        // GIỚI HẠN DÒNG LOG ĐỂ TRÁNH LAG TRÌNH DUYỆT
-        if (logDiv) {
-          const item = document.createElement('div');
-          item.className = 'log-item';
-          item.innerText = '[' + new Date().toLocaleTimeString() + '] ' + dataStr;
-          logDiv.appendChild(item);
-          
-          while (logDiv.children.length > MAX_LOGS) {
-            logDiv.removeChild(logDiv.firstChild);
-          }
-          logDiv.scrollTop = logDiv.scrollHeight;
-        }
+  // 1. GHI LOG HIỂN THỊ
+  if (logDiv) {
+    const item = document.createElement('div');
+    item.className = 'log-item';
+    item.innerText = '[' + new Date().toLocaleTimeString() + '] ' + dataStr;
+    logDiv.appendChild(item);
+    
+    while (logDiv.children.length > MAX_LOGS) {
+      logDiv.removeChild(logDiv.firstChild);
+    }
+    logDiv.scrollTop = logDiv.scrollHeight;
+  }
 
-        if (dataStr.startsWith('TYPE:')) {
-          const parts = dataStr.split(':');
-          const targetType = String(parts[1]).trim();
-          const isOn = parts[2] === '1';
+  // 2. XỬ LÝ LỆNH LOẠI THƯƠNG MẠI/TIỆN ÍCH (TYPE:)
+  if (dataStr.startsWith('TYPE:')) {
+    const parts = dataStr.split(':');
+    const targetType = String(parts[1]).trim();
+    const isOn = parts[2] === '1';
 
-          const cards = document.querySelectorAll('.led-card');
-          for (let i = 0; i < cards.length; i++) {
-            if (String(cards[i].getAttribute('data-type')).trim() === targetType) {
-              if (isOn) cards[i].classList.add('active');
-              else cards[i].classList.remove('active');
-            }
-          }
-          return;
-        }
+    const cards = document.querySelectorAll('.led-card');
+    for (let i = 0; i < cards.length; i++) {
+      if (String(cards[i].getAttribute('data-type')).trim() === targetType) {
+        if (isOn) cards[i].classList.add('active');
+        else cards[i].classList.remove('active');
+      }
+    }
+    return;
+  }
 
-        if (dataStr.startsWith('ALL:')) {
-          const parts = dataStr.split(':');
-          const isOn = parts[1] === '1';
-          const cards = document.querySelectorAll('.led-card');
+  // 3. XỬ LÝ LỆNH TỔNG HOẶC NHÓM/LOẠI PHÒNG (ALL:)
+  if (dataStr.startsWith('ALL:')) {
+    const firstColon = dataStr.indexOf(':');
+    const secondColon = dataStr.indexOf(':', firstColon + 1);
 
-          if (parts.length >= 3 && parts[2].trim().length > 0) {
-            const targetIds = new Set(parts[2].split(',').map(function(id) { return id.trim(); }));
-            for (let i = 0; i < cards.length; i++) {
-              if (targetIds.has(String(cards[i].getAttribute('data-hw')))) {
-                if (isOn) cards[i].classList.add('active');
-                else cards[i].classList.remove('active');
-              }
-            }
-          } else {
-            for (let i = 0; i < cards.length; i++) {
-              if (isOn) cards[i].classList.add('active');
-              else cards[i].classList.remove('active');
-            }
-          }
-          return;
-        }
+    const cards = document.querySelectorAll('.led-card');
 
-        if (dataStr.includes(':')) {
-          const parts = dataStr.split(':');
-          const hwIndex = parts[0].trim();
-          const isOn = parts[1].trim() === '1';
-          updateLedCard(hwIndex, isOn);
-          return;
-        }
-      };
+    if (secondColon === -1) {
+      // 🟢 Lệnh Tổng Sa Bàn: ALL:1 hoặc ALL:0
+      const isOn = dataStr.substring(firstColon + 1).trim() === '1';
+      for (let i = 0; i < cards.length; i++) {
+        if (isOn) cards[i].classList.add('active');
+        else cards[i].classList.remove('active');
+      }
+    } else {
+      // 🟢 Lệnh Nhóm: ALL:1:0-7 hoặc ALL:1:0,1,2,3 hoặc kết hợp ALL:1:0-7,10,12-15
+      const isOn = dataStr.substring(firstColon + 1, secondColon).trim() === '1';
+      const idsStr = dataStr.substring(secondColon + 1).trim();
+
+      // Tập hợp lưu danh sách chỉ số HW LED cần tác động
+      const targetHWSet = new Set();
+
+      // Tách theo dấu phẩy
+      const tokens = idsStr.split(',');
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i].trim();
+        if (token.length > 0) {
+          const dashIndex = token.indexOf('-');
+          if (dashIndex !== -1) {
+            // 🟢 GIẢI MÃ DẢI NÉN (Ví dụ "0-7")
+            const startIdx = parseInt(token.substring(0, dashIndex), 10);
+            const endIdx = parseInt(token.substring(dashIndex + 1), 10);
+
+            if (!isNaN(startIdx) && !isNaN(endIdx) && startIdx <= endIdx) {
+              for (let hw = startIdx; hw <= endIdx; hw++) {
+                targetHWSet.add(String(hw));
+              }
+            }
+          } else {
+            // 🟢 CHỈ SỐ ĐƠN LẺ (Ví dụ "69")
+            targetHWSet.add(token);
+          }
+        }
+      }
+
+      // Cập nhật trạng thái hiển thị trên thẻ card UI
+      for (let i = 0; i < cards.length; i++) {
+        const hwAttr = String(cards[i].getAttribute('data-hw')).trim();
+        if (targetHWSet.has(hwAttr)) {
+          if (isOn) cards[i].classList.add('active');
+          else cards[i].classList.remove('active');
+        }
+      }
+    }
+    return;
+  }
+
+  // 4. XỬ LÝ LỆNH ĐỒNG BỘ 1 CĂN ĐƠN LẺ (Ví dụ: "105:1")
+  if (dataStr.includes(':')) {
+    const parts = dataStr.split(':');
+    const hwIndex = parts[0].trim();
+    const isOn = parts[1].trim() === '1';
+    
+    // Gọi hàm helper update trực tiếp thẻ card theo hwIndex
+    if (typeof updateLedCard === 'function') {
+      updateLedCard(hwIndex, isOn);
+    } else {
+      const cards = document.querySelectorAll('.led-card');
+      for (let i = 0; i < cards.length; i++) {
+        if (String(cards[i].getAttribute('data-hw')).trim() === hwIndex) {
+          if (isOn) cards[i].classList.add('active');
+          else cards[i].classList.remove('active');
+        }
+      }
+    }
+    return;
+  }
+};
+
     });
   </script>
 </body>
